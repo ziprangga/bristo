@@ -2,9 +2,7 @@
 
 ## Screenshot
 
-<img width="500" alt="bristle UI" src="doc/bristle_1.png" />           <img width="500" alt="bristle UI" src="doc/bristle_2.png" />
-
-
+<img width="500" alt="bristle UI" src="doc/bristle_1.png" /> <img width="500" alt="bristle UI" src="doc/bristle_2.png" />
 
 ---
 
@@ -105,7 +103,11 @@ Bristle can also search for log files to help with more thorough cleanup.
 
 ## License
 
-**_This project is licensed under the MIT License – see the [LICENSE](doc/LICENSE) file for details._**
+\*\*\_ Licensed under either of:
+Apache License, Version 2.0 (LICENSE-APACHE or http://www.apache.org/licenses/LICENSE-2.0)
+MIT license (LICENSE-MIT or http://opensource.org/licenses/MIT)
+
+at your option.
 
 ---
 
