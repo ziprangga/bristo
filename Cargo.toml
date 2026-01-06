@@ -7,7 +7,7 @@ resolver = "3"
 edition = "2024"
 version = "0.1.0"
 authors = ["ziprangga"]
-license = "MIT"
+license = "MIT or Apache-2.0"
 
 [workspace.dependencies]
 plist = "1.3"
