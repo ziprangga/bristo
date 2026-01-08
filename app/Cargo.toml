@@ -21,7 +21,7 @@ futures = { workspace = true }
 iced = { workspace = true }
 
 
-[package.metadata.bundle.bin.Bristle]
+[package.metadata.bundle.bin.Bristo]
 name = "Bristo"
 identifier = "com.ziprangga.Bristo"
 icon = ["assets/Bristle.icns"]
