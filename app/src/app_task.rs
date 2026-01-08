@@ -14,7 +14,7 @@ pub async fn set_input_path() -> Result<Arc<PathBuf>> {
         .add_filter("Application", &["app"])
         .pick_file()
         .await
-        .ok_or_else(|| anyhow!("No file selected"))?;
+        .ok_or_else(|| anyhow!("No application selected"))?;
 
     Ok(Arc::new(file.path().to_path_buf()))
 }
