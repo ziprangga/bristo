@@ -43,12 +43,14 @@ impl AppData {
 
     pub fn find_pid_and_command(&mut self) {
         self.app_process = AppProcess::find_app_processes(&self.app);
-        for p in &self.app_process {
+
+        // debug list of the app process
+        for _p in &self.app_process {
             debug_dev!(
                 "list of process app: PID {}: cmd_line = '{}' name = '{}'",
-                p.pid,
-                p.command,
-                p.process_name
+                _p.pid,
+                _p.command,
+                _p.process_name
             );
         }
     }
