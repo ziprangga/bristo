@@ -1,5 +1,8 @@
 use std::env;
 use std::path::PathBuf;
+// =======
+use crate::foundation::sysconf_path;
+use crate::foundation::{DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR};
 
 #[derive(Debug, Clone)]
 pub struct LocationsScan {
@@ -54,11 +57,11 @@ impl LocationsScan {
         paths.push(PathBuf::from("/usr/local/var"));
 
         // Optional: macOS cache/temp directories
-        if let Ok(cache_dir) = std::env::var("DARWIN_USER_CACHE_DIR") {
-            paths.push(PathBuf::from(cache_dir));
+        if let Some(p) = sysconf_path(DARWIN_USER_CACHE_DIR) {
+            paths.push(p);
         }
-        if let Ok(temp_dir) = std::env::var("DARWIN_USER_TEMP_DIR") {
-            paths.push(PathBuf::from(temp_dir));
+        if let Some(p) = sysconf_path(DARWIN_USER_TEMP_DIR) {
+            paths.push(p);
         }
 
         Self { paths }

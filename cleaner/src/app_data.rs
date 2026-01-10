@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use walkdir::WalkDir;
 
-use crate::helpers::path_contains_ignore_case;
+use common_debug::debug_dev;
 
 #[derive(Debug, Default, Clone)]
 pub struct AppData {
@@ -43,6 +43,14 @@ impl AppData {
 
     pub fn find_pid_and_command(&mut self) {
         self.app_process = AppProcess::find_app_processes(&self.app);
+        for p in &self.app_process {
+            debug_dev!(
+                "list of process app: PID {}: cmd_line = '{}' name = '{}'",
+                p.pid,
+                p.command,
+                p.process_name
+            );
+        }
     }
 
     pub fn find_log_bom(&mut self, locations: &LocationsScan) {
@@ -74,11 +82,7 @@ impl AppData {
                         let path_buf = entry.path().to_path_buf();
                         let mut matches = Vec::new();
 
-                        if path_contains_ignore_case(&path_buf, &self.app.name)
-                            || path_contains_ignore_case(&path_buf, &self.app.bundle_id)
-                            || path_contains_ignore_case(&path_buf, &self.app.bundle_name)
-                            || path_contains_ignore_case(&path_buf, &self.app.organization)
-                        {
+                        if self.app.path_matches(&path_buf) {
                             matches.push((
                                 path_buf.clone(),
                                 path_buf.file_name().unwrap().to_string_lossy().to_string(),

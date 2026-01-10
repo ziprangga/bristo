@@ -1,7 +1,42 @@
 use anyhow::Result;
 use std::process::Command;
 
-pub fn kill_dialog(app_name: &str) -> Result<bool> {
+// use objc2::ClassType;
+// use objc2::msg_send;
+// use objc2::rc::autoreleasepool;
+// use objc2_app_kit::NSAlert;
+// use objc2_foundation::NSString;
+
+// pub fn modal_kill_dialog(app_name: &str) -> bool {
+//     autoreleasepool(|_pool| unsafe {
+//         // Allocate + init NSAlert
+//         let alert: *mut NSAlert = msg_send![NSAlert::class(), alloc];
+//         let alert: *mut NSAlert = msg_send![alert, init];
+
+//         // Set message text
+//         let msg = NSString::from_str(&format!("The app '{}' is still running.", app_name));
+//         let info = NSString::from_str(
+//             "Do you want to kill its running process?\nBe careful to save your work first!",
+//         );
+
+//         let _: () = msg_send![alert, setMessageText: &*msg];
+//         let _: () = msg_send![alert, setInformativeText: &*info];
+
+//         // Add buttons
+//         let yes = NSString::from_str("Yes");
+//         let no = NSString::from_str("No");
+//         let _: () = msg_send![alert, addButtonWithTitle: &*yes];
+//         let _: () = msg_send![alert, addButtonWithTitle: &*no];
+
+//         // Run modally
+//         let response: i32 = msg_send![alert, runModal];
+
+//         // 1000 = first button return (Yes)
+//         response == 1000
+//     })
+// }
+
+pub fn modal_kill_dialog(app_name: &str) -> Result<bool> {
     // AppleScript dialog with Yes/No buttons
     let script = format!(
         r#"
@@ -21,6 +56,21 @@ pub fn kill_dialog(app_name: &str) -> Result<bool> {
 
     Ok(response.trim() == "YES")
 }
+
+// use libc::kill;
+// use nix::unistd::Pid;
+// use std::io;
+
+// pub fn kill_pids(pids: &[i32]) -> io::Result<()> {
+//     for &pid in pids {
+//         // SIGTERM
+//         let res = unsafe { kill(pid, libc::SIGTERM) };
+//         if res != 0 {
+//             eprintln!("Failed to kill PID {}: {}", pid, io::Error::last_os_error());
+//         }
+//     }
+//     Ok(())
+// }
 
 /// Kill the given PIDs using AppleScript
 pub fn kill_pids(pids: &str) -> Result<()> {

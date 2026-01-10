@@ -11,11 +11,16 @@ use common_debug::debug_dev;
 pub struct AppProcess {
     pub pid: i32,
     pub command: String,
+    pub process_name: String,
 }
 
 impl AppProcess {
-    pub fn new(pid: i32, command: String) -> Self {
-        Self { pid, command }
+    pub fn new(pid: i32, command: String, process_name: String) -> Self {
+        Self {
+            pid,
+            command,
+            process_name,
+        }
     }
 
     pub fn find_app_processes(app: &AppInfo) -> Vec<Self> {
@@ -40,15 +45,16 @@ impl AppProcess {
                     .collect::<Vec<_>>()
                     .join(" ");
 
-                debug_dev!(
-                    "PID {}: cmd_line = '{}', checking patterns {:?}",
-                    pid,
-                    cmd_line,
-                    patterns
-                );
-
                 // Convert process.name() to string for pattern matching
                 let process_name = process.name().to_string_lossy();
+
+                debug_dev!(
+                    "PID {}: cmd_line = '{}', process = '{}', checking patterns {:?}",
+                    pid,
+                    cmd_line,
+                    process_name,
+                    patterns
+                );
 
                 // Match if command line contains pattern OR process name contains pattern
                 let is_match = patterns
@@ -56,7 +62,11 @@ impl AppProcess {
                     .any(|pat| cmd_line.contains(pat) || process_name.contains(pat));
 
                 if is_match {
-                    Some(Self::new(pid.as_u32() as i32, cmd_line))
+                    Some(Self::new(
+                        pid.as_u32() as i32,
+                        cmd_line,
+                        process_name.into_owned(),
+                    ))
                 } else {
                     None
                 }

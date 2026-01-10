@@ -2,6 +2,9 @@ use anyhow::{Context, Result, anyhow};
 use plist::Value;
 use std::path::{Path, PathBuf};
 
+use crate::helpers::path_contains_ignore_case;
+use crate::helpers::path_equals_ignore_case;
+
 #[derive(Debug, Clone)]
 pub struct AppInfo {
     pub path: PathBuf,
@@ -57,6 +60,17 @@ impl AppInfo {
             bundle_name: executable_name.to_string(),
             organization,
         })
+    }
+
+    pub fn path_matches(&self, path: &Path) -> bool {
+        // path_contains_ignore_case(path, &app.name)
+        //     || path_contains_ignore_case(path, &app.bundle_id)
+        //     || path_contains_ignore_case(path, &app.bundle_name)
+        //     || path_contains_ignore_case(path, &app.organization)
+        path_equals_ignore_case(path, &self.name)
+            || path_equals_ignore_case(path, &self.bundle_name)
+            || path_equals_ignore_case(path, &self.organization)
+            || path_contains_ignore_case(path, &self.bundle_id)
     }
 }
 

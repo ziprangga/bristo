@@ -1,10 +1,13 @@
 use anyhow::Result;
+use anyhow::anyhow;
 use std::path::Path;
 use std::path::PathBuf;
-use std::process::Command;
+// use std::process::Command;
 // ============
 use objc2::rc::Retained;
 use objc2::{ClassType, msg_send};
+use objc2_app_kit::NSWorkspace;
+use objc2_foundation::NSArray;
 use objc2_foundation::{NSError, NSFileManager, NSString, NSURL};
 
 pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, String)>> {
@@ -61,10 +64,29 @@ pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Stri
 }
 
 pub fn show_in_finder(path: &Path) -> Result<()> {
-    Command::new("open").arg("-R").arg(path).status()?;
+    let s = path
+        .to_str()
+        .ok_or_else(|| anyhow!("Path is not valid UTF-8"))?;
+
+    let ns_path = NSString::from_str(s);
+    let url = NSURL::fileURLWithPath(&ns_path);
+
+    let urls = NSArray::from_slice(&[&*url]);
+
+    let workspace = NSWorkspace::sharedWorkspace();
+
+    unsafe {
+        let _: () = msg_send![&workspace, activateFileViewerSelectingURLs: &*urls];
+    }
 
     Ok(())
 }
+
+// pub fn show_in_finder(path: &Path) -> Result<()> {
+//     Command::new("open").arg("-R").arg(path).status()?;
+
+//     Ok(())
+// }
 
 // /// Move  paths to trash
 // pub fn trash_files(paths: &[PathBuf]) -> Result<()> {

@@ -1,6 +1,9 @@
 use futures::StreamExt;
 use iced::{Event, Subscription, Task, window};
+use std::collections::HashMap;
 use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
 use tokio_stream::wrappers::ReceiverStream;
 
 use common_debug::debug_dev;
@@ -9,6 +12,7 @@ use status::status_event::StatusEvent;
 
 use crate::app_state::{AppMessage, AppState};
 use crate::app_status::StatusMessage;
+use crate::app_task::confirm_kill_process;
 use crate::app_task::save_bom_logs_async;
 use crate::app_task::scan_app_async;
 use crate::app_task::set_input_path;
@@ -28,7 +32,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 Task::perform(
                     add_app(state.input_file.clone(), Some(reporter)),
                     |res| match res {
-                        Ok(cleaner) => AppMessage::ScanApp(Ok(cleaner)),
+                        Ok(cleaner) => AppMessage::ConfirmKill(Ok(cleaner)),
                         Err(err) => {
                             let event = StatusEvent::new()
                                 .with_stage("Failed")
@@ -59,6 +63,33 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     AppMessage::Status(StatusMessage::Event(event))
                 }
             })
+        }
+
+        AppMessage::ConfirmKill(result) => {
+            if let Ok(cleaner) = result {
+                let (reporter, rx) = setup_status_emitter(10);
+                let cleaner = Arc::new(cleaner);
+
+                let confirm_task = Task::perform(
+                    confirm_kill_process(cleaner.clone(), Some(reporter)),
+                    move |res| match res {
+                        Ok(()) => AppMessage::ScanApp(Ok(
+                            Arc::try_unwrap(cleaner).unwrap_or_else(|c| (*c).clone())
+                        )),
+                        Err(err) => AppMessage::ScanApp(Err(err.to_string())),
+                    },
+                );
+
+                let rx_stream = ReceiverStream::new(rx);
+                let status_task = Task::run(
+                    rx_stream.map(|event| AppMessage::Status(StatusMessage::Event(event))),
+                    |msg| msg,
+                );
+
+                Task::batch(vec![confirm_task, status_task])
+            } else {
+                Task::none()
+            }
         }
 
         AppMessage::ScanApp(cleaner) => {
@@ -182,9 +213,24 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             .collect();
 
                         // Build the message from the actual failed paths
-                        let report = failed_clone
+                        // let report = failed_clone
+                        //     .iter()
+                        //     .map(|(p, reason)| format!("{}: {}", p.display(), reason))
+                        //     .collect::<Vec<_>>()
+                        //     .join("\n");
+                        // group by reason
+                        let mut grouped_reason: HashMap<String, Vec<PathBuf>> = HashMap::new();
+
+                        for (path, reason) in failed_clone {
+                            grouped_reason.entry(reason).or_default().push(path);
+                        }
+
+                        // build short grouped report message
+                        let report = grouped_reason
                             .iter()
-                            .map(|(p, reason)| format!("{}: {}", p.display(), reason))
+                            .map(|(reason, paths)| {
+                                format!("{} items failed: {}", paths.len(), reason)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n");
 

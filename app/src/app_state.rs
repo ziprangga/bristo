@@ -11,6 +11,8 @@ pub enum AppMessage {
     OpenFile,
     ScanApp(Result<Cleaner, String>),
 
+    ConfirmKill(Result<Cleaner, String>),
+
     UpdateCleaner(Cleaner),
     OpenSelectedPath(usize),
 

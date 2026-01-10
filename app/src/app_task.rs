@@ -35,6 +35,15 @@ pub async fn add_app(path: PathBuf, status: Option<StatusEmitter>) -> Result<Cle
         .map_err(|e| anyhow::anyhow!("Add application failed: {}", e))?
 }
 
+pub async fn confirm_kill_process(
+    cleaner: Arc<Cleaner>,
+    status: Option<StatusEmitter>,
+) -> Result<()> {
+    tokio::task::spawn_blocking(move || cleaner.confirm_and_kill_process(status.as_ref()))
+        .await
+        .map_err(|e| anyhow::anyhow!("Confirm and kill process failed: {}", e))?
+}
+
 pub async fn scan_app_async(
     mut cleaner: Cleaner,
     status: Option<StatusEmitter>,

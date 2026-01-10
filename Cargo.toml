@@ -32,7 +32,8 @@ unicode-normalization = "0.1"
 # Foundation Api
 objc2 = "0.6"
 objc2-foundation = "0.3"
-
+libc = "0.2"
+objc2-app-kit = "0.3"
 
 [profile.release]
 lto = true
