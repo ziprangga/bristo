@@ -194,9 +194,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let cleaner = state.cleaner.clone();
             Task::perform(save_bom_logs_async(cleaner, output_dir), |res| match res {
                 Ok(()) => {
-                    let event = StatusEvent::new()
-                        .with_stage("Success:")
-                        .with_message("Bom file saved".to_string());
+                    let event = StatusEvent::new().with_message("Bom file saved".to_string());
                     AppMessage::Status(StatusMessage::Event(event))
                 }
                 Err(err) => {
