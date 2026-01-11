@@ -5,6 +5,20 @@ use std::path::{Path, PathBuf};
 use crate::helpers::path_contains_ignore_case;
 use crate::helpers::path_equals_ignore_case;
 
+pub enum MatchRules {
+    Equal,
+    Contain,
+}
+
+impl MatchRules {
+    fn match_path(&self, path: &Path, value: &str) -> bool {
+        match self {
+            MatchRules::Equal => path_equals_ignore_case(path, value),
+            MatchRules::Contain => path_contains_ignore_case(path, value),
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct AppInfo {
     pub path: PathBuf,
@@ -62,11 +76,26 @@ impl AppInfo {
         })
     }
 
-    pub fn path_matches(&self, path: &Path) -> bool {
-        path_equals_ignore_case(path, &self.name)
-            || path_equals_ignore_case(path, &self.bundle_name)
-            || path_equals_ignore_case(path, &self.organization)
-            || path_contains_ignore_case(path, &self.bundle_id)
+    pub fn associate_path_matches(&self, path: &Path) -> bool {
+        self.rules_matches(
+            path,
+            &[
+                (MatchRules::Equal, &self.name),
+                (MatchRules::Equal, &self.bundle_name),
+                (MatchRules::Equal, &self.organization),
+                (MatchRules::Contain, &self.bundle_id),
+            ],
+        )
+        // path_equals_ignore_case(path, &self.name)
+        //     || path_equals_ignore_case(path, &self.bundle_name)
+        //     || path_equals_ignore_case(path, &self.organization)
+        //     || path_contains_ignore_case(path, &self.bundle_id)
+    }
+
+    pub fn rules_matches(&self, path: &Path, rules: &[(MatchRules, &str)]) -> bool {
+        rules
+            .iter()
+            .any(|(rule, value)| rule.match_path(path, value))
     }
 }
 

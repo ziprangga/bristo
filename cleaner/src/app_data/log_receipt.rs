@@ -2,8 +2,10 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
+use crate::app_data::AppInfo;
+use crate::app_data::LocationsScan;
+use crate::app_data::app_info::MatchRules;
 use crate::foundation::run_lsbom_command;
-use crate::{AppInfo, LocationsScan};
 
 #[derive(Debug, Default, Clone)]
 pub struct LogReceipt {
@@ -19,16 +21,15 @@ impl LogReceipt {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.extension().map(|ext| ext == "bom").unwrap_or(false)
-                        && path
-                            .file_name()
-                            .and_then(|n| n.to_str())
-                            .map(|n| {
-                                n.contains(&app.bundle_name)
-                                    || n.contains(&app.bundle_id)
-                                    || n.contains(&app.name)
-                                    || n.contains(&app.organization)
-                            })
-                            .unwrap_or(false)
+                        && app.rules_matches(
+                            &path,
+                            &[
+                                (MatchRules::Contain, &app.name),
+                                (MatchRules::Contain, &app.bundle_name),
+                                (MatchRules::Contain, &app.organization),
+                                (MatchRules::Contain, &app.bundle_id),
+                            ],
+                        )
                     {
                         bom_files.push(path);
                     }

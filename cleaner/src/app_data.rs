@@ -84,7 +84,7 @@ impl AppData {
                         let path_buf = entry.path().to_path_buf();
                         let mut matches = Vec::new();
 
-                        if self.app.path_matches(&path_buf) {
+                        if self.app.associate_path_matches(&path_buf) {
                             matches.push((
                                 path_buf.clone(),
                                 path_buf.file_name().unwrap().to_string_lossy().to_string(),
