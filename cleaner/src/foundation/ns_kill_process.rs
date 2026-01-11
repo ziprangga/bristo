@@ -16,6 +16,18 @@ use std::process::Command;
 //     Ok(())
 // }
 
+// use rustix::process::kill;
+// use rustix::process::Pid;
+// use rustix::signal::Signal;
+
+// fn kill_pids(pids: &str) {
+//     for pid_str in pids.split_whitespace() {
+//         if let Ok(pid) = pid_str.parse::<i32>() {
+//             let _ = kill(Pid::from_raw(pid), Signal::kill());
+//         }
+//     }
+// }
+
 /// Kill the given PIDs using AppleScript
 pub fn kill_pids(pids: &str) -> Result<()> {
     let script = format!(

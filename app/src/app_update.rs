@@ -200,9 +200,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     AppMessage::Status(StatusMessage::Event(event))
                 }
                 Err(err) => {
-                    let event = StatusEvent::new()
-                        .with_stage("Failed:")
-                        .with_message(err.to_string());
+                    let event = StatusEvent::new().with_message(err.to_string());
                     AppMessage::Status(StatusMessage::Event(event))
                 }
             })
@@ -235,11 +233,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             .collect();
 
                         // Build the message from the actual failed paths
-                        // let report = failed_clone
-                        //     .iter()
-                        //     .map(|(p, reason)| format!("{}: {}", p.display(), reason))
-                        //     .collect::<Vec<_>>()
-                        //     .join("\n");
                         // group by reason
                         let mut grouped_reason: HashMap<String, Vec<PathBuf>> = HashMap::new();
 

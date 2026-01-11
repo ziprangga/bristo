@@ -82,6 +82,7 @@ pub fn show_in_finder(path: &Path) -> Result<()> {
     Ok(())
 }
 
+// old code that use finder spawn and osascript
 // pub fn show_in_finder(path: &Path) -> Result<()> {
 //     Command::new("open").arg("-R").arg(path).status()?;
 

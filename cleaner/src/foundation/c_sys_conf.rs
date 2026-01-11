@@ -54,3 +54,23 @@ pub fn sysconf_path(name: i32) -> Option<PathBuf> {
         Some(PathBuf::from(s))
     }
 }
+
+// use nix::unistd::confstr;
+// use nix::unistd::ConfStrName;
+// use std::path::PathBuf;
+
+// pub const DARWIN_USER_CACHE_DIR = ConfStrName::DarwinUserCacheDir;
+// pub const DARWIN_USER_TEMP_DIR = ConfStrName::DarwinUserTempDir;
+
+// pub fn sysconf_path(name: ConfStrName) -> Option<PathBuf> {
+//     confstr(name)
+//         .ok()
+//         .map(|s| PathBuf::from(s.trim_end_matches('/')))
+// }
+
+// use rustix::unistd::{confstr, ConfStrName};
+// use std::path::PathBuf;
+
+// pub fn sysconf_path(name: ConfStrName) -> Option<PathBuf> {
+//     confstr(name).ok().map(|s| PathBuf::from(s.trim_end_matches('/')))
+// }
