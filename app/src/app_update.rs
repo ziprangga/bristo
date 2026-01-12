@@ -216,6 +216,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             match result {
                 Ok(failed_paths) => {
                     if failed_paths.is_empty() {
+                        state.reset();
                         state.status.message = Some("App moved to Trash".to_string());
                     } else {
                         let failed_clone = failed_paths.clone();
