@@ -107,7 +107,10 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         })
         .view();
 
-    let center_view = if !has_real_items {
+    let center_view = if !has_real_items
+        && !state.show_modal_ask.show_modal
+        && state.input_file.as_os_str().is_empty()
+    {
         drop_zone
     } else {
         list_view
