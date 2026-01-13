@@ -72,7 +72,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
                     // Set the modal message and show it
                     state.show_modal_ask.set_message(format!(
-                        "The app '{}' is still running.\nDo you want to kill its running process?",
+                        "The app '{}' is still running.\nDo you want to kill its running process?\nBe careful to save your work first before continuing.",
                         state.pending_cleaner.as_ref().unwrap().app_data.app.name
                     ));
                     Task::none()

@@ -1,5 +1,7 @@
 use iced::Element;
-use iced::widget::{Column, Container, Row, Text, container, opaque};
+use iced::widget::mouse_area;
+use iced::widget::opaque;
+use iced::widget::{Column, Container, Row, Text, container};
 use iced::{Background, Border, Color, Length, alignment};
 
 use widget::button_style::{CustomButton, blank_border_style, danger_style};
@@ -55,7 +57,7 @@ impl ModalAsk {
             .text_size(12)
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(true))
-            .style(blank_border_style)
+            .style(danger_style)
             .view();
 
         // No button
@@ -63,7 +65,7 @@ impl ModalAsk {
             .text_size(12)
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(false))
-            .style(danger_style)
+            .style(blank_border_style)
             .view();
 
         // buttons row
@@ -73,7 +75,7 @@ impl ModalAsk {
         let modal_column = Column::new().push(modal_text).push(buttons_row).spacing(12);
 
         let modal_container = Container::new(modal_column)
-            .padding(20)
+            .padding(15)
             .width(300)
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center)
@@ -88,23 +90,35 @@ impl ModalAsk {
             });
 
         // full modal container
-        let modal_overlay = opaque(
-            Container::new(modal_container)
-                .width(Length::Fill)
-                .height(Length::Fill)
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
-                .style(|_| iced::widget::container::Style {
-                    background: Some(Background::Color(Color {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.8,
-                    })),
-                    ..Default::default()
-                }),
-        );
+        let modal_overlay = Container::new(modal_container)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center)
+            .style(|_| iced::widget::container::Style {
+                background: Some(Background::Color(Color {
+                    r: 0.0,
+                    g: 0.0,
+                    b: 0.0,
+                    a: 0.5,
+                })),
+                ..Default::default()
+            });
 
-        Some(modal_overlay.into())
+        let mouse_area_modal =
+            mouse_area(iced::widget::center(opaque(modal_overlay)).style(|_theme| {
+                container::Style {
+                    background: Some(
+                        Color {
+                            a: 0.5,
+                            ..Color::BLACK
+                        }
+                        .into(),
+                    ),
+                    ..container::Style::default()
+                }
+            }));
+
+        Some(mouse_area_modal.into())
     }
 }
