@@ -10,7 +10,6 @@ use common_debug::debug_dev;
 use status::setup_status_emitter;
 use status::status_event::StatusEvent;
 
-// use crate::app_modal::modal_process_kill_dialog;
 use crate::app_modal::ModalAskMessage;
 use crate::app_state::{AppMessage, AppState};
 use crate::app_status::StatusMessage;
