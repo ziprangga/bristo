@@ -8,7 +8,7 @@ pub fn init_dev_logger() {
         // .filter_level(log::LevelFilter::Info)
         .filter_module("cleaner", log::LevelFilter::Debug)
         .filter_module("widget", log::LevelFilter::Debug)
-        .filter_module("app", log::LevelFilter::Debug)
+        .filter_module("Bristo", log::LevelFilter::Debug)
         .try_init();
 }
 

@@ -1,14 +1,15 @@
 use iced::widget::Column;
 use iced::widget::Stack;
 use iced::{
-    Background, Border, Color, Padding, alignment,
-    widget::{Container, Row, Text, container, row, text},
+    alignment,
+    widget::{container, row, text, Container, Row, Text},
+    Background, Border, Color, Padding,
 };
 use iced::{Element, Length};
 
 use crate::app_state::{AppMessage, AppState};
 use widget::button_style::{
-    CustomButton, blank_border_style, blank_btn_style, custom_btn_rounded_style, danger_style,
+    blank_border_style, blank_btn_style, custom_btn_rounded_style, danger_style, CustomButton,
 };
 use widget::drop_file::DropFile;
 use widget::list_view::{HeaderContent, HeaderWidget, ListView, RowContent, WidgetContent};
