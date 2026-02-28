@@ -116,8 +116,25 @@ impl AppData {
             .filter(|(p, _)| seen.insert(p.clone()))
             .collect();
 
+        // remove child path if the parent in the list
+        // so it not mess with the list when move to trash
+        let mut sorted = unique_results;
+        sorted.sort_by_key(|(p, _)| p.components().count());
+
+        let mut filtered: Vec<(PathBuf, String)> = Vec::new();
+
+        'parent_filter: for (path, name) in sorted {
+            for (existing_path, _) in &filtered {
+                if path.starts_with(existing_path) {
+                    continue 'parent_filter;
+                }
+            }
+            filtered.push((path, name));
+        }
+
         // Build the indexed list including the app itself
-        self.set_all_associate_file(unique_results);
+        // self.set_all_associate_file(unique_results);
+        self.set_all_associate_file(filtered);
     }
 
     /// Update associate_files with given list and include app itself
