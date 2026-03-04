@@ -7,7 +7,7 @@ use crate::AppInfo;
 use crate::syscom::kill_pids;
 use common_debug::debug_dev;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct AppProcess {
     pub pid: i32,
     pub command: String,

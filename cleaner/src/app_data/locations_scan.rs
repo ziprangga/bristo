@@ -82,3 +82,33 @@ impl Default for LocationsScan {
         Self::new()
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct SandboxContainerLocation {
+    pub paths: Vec<PathBuf>,
+}
+
+impl SandboxContainerLocation {
+    pub fn new() -> Self {
+        let mut paths = Vec::new();
+        let home = env::var("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("/Users/Unknown"));
+
+        paths.push(home.join("Library/Containers"));
+
+        Self { paths }
+    }
+
+    pub fn sandbox_pattern(&self) -> Vec<PathBuf> {
+        let mut pattern = Vec::new();
+        pattern.push(PathBuf::from("Data").join("Library").join("Preferences"));
+        pattern
+    }
+}
+
+impl Default for SandboxContainerLocation {
+    fn default() -> Self {
+        Self::new()
+    }
+}

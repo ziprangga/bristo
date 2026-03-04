@@ -1,25 +1,13 @@
-use anyhow::{Context, Result, anyhow};
-use plist::Value;
+use anyhow::{Result, anyhow};
+use common_debug::debug_dev;
+
+use rayon::prelude::*;
 use std::path::{Path, PathBuf};
+use walkdir::WalkDir;
 
-use crate::helpers::path_contains_ignore_case;
-use crate::helpers::path_equals_ignore_case;
+use crate::app_data::plist_reader::PlistReader;
 
-pub enum MatchRules {
-    Equal,
-    Contain,
-}
-
-impl MatchRules {
-    fn match_path(&self, path: &Path, value: &str) -> bool {
-        match self {
-            MatchRules::Equal => path_equals_ignore_case(path, value),
-            MatchRules::Contain => path_contains_ignore_case(path, value),
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct AppInfo {
     pub path: PathBuf,
     pub name: String,
@@ -31,28 +19,35 @@ pub struct AppInfo {
 impl AppInfo {
     /// Construct AppInfo from .app path
     pub fn from_path(app_path: &Path) -> Result<Self> {
-        let plist_path = Path::new(app_path).join("Contents").join("Info.plist");
+        let mut plist_path = app_path.join("Contents").join("Info.plist");
 
         if !plist_path.exists() {
-            anyhow::bail!("Info.plist not found in {}", app_path.display());
+            let found = WalkDir::new(app_path)
+                .into_iter()
+                .par_bridge()
+                .filter_map(Result::ok)
+                .filter(|entry| entry.file_type().is_file() && entry.file_name() == "Info.plist")
+                .collect::<Vec<_>>();
+
+            let upper = found
+                .into_par_iter()
+                .min_by_key(|entry| entry.depth())
+                .map(|entry| entry.path().to_path_buf());
+
+            let selected = upper
+                .ok_or_else(|| anyhow::anyhow!("Info.plist not found in {}", app_path.display()))?;
+
+            debug_dev!("Info.plist selected from: {}", selected.to_string_lossy());
+
+            plist_path = selected;
         }
 
-        let plist = Value::from_file(&plist_path)
-            .with_context(|| format!("Failed to read plist: {}", plist_path.display()))?;
-
-        let bundle_id = plist
-            .as_dictionary()
-            .and_then(|d| d.get("CFBundleIdentifier"))
-            .and_then(|v| v.as_string())
-            .ok_or_else(|| {
-                anyhow::anyhow!("CFBundleIdentifier not found in {}", plist_path.display())
-            })?;
-
+        let plist = PlistReader::new(&plist_path)?;
+        let bundle_id = plist.bundle_id().ok_or_else(|| {
+            anyhow::anyhow!("CFBundleIdentifier not found in {}", plist_path.display())
+        })?;
         let app_name = plist
-            .as_dictionary()
-            .and_then(|d| d.get("CFBundleDisplayName"))
-            .and_then(|v| v.as_string())
-            .map(|s| s.to_string())
+            .display_name()
             .or_else(|| {
                 // fallback to file stem if CFBundleDisplayName is missing
                 Some(app_path.file_stem()?.to_string_lossy().into_owned())
@@ -60,12 +55,19 @@ impl AppInfo {
             .ok_or_else(|| anyhow!("Failed to determine app name for {}", app_path.display()))?;
 
         let executable_name = plist
-            .as_dictionary()
-            .and_then(|d| d.get("CFBundleExecutable"))
-            .and_then(|v| v.as_string())
+            .executable_name()
             .ok_or_else(|| anyhow!("CFBundleExecutable not found in {}", plist_path.display()))?;
 
-        let organization = bundle_id.split('.').nth(1).unwrap_or("").to_string();
+        let organization = plist.organization().unwrap_or_default();
+
+        debug_dev!(
+            "path: {}, name: {}, bundle_id: {}, bundle_name: {}, organization: {}",
+            app_path.to_string_lossy(),
+            app_name.to_string(),
+            bundle_id.to_string(),
+            executable_name.to_string(),
+            organization,
+        );
 
         Ok(Self {
             path: app_path.to_path_buf(),
@@ -74,39 +76,5 @@ impl AppInfo {
             bundle_name: executable_name.to_string(),
             organization,
         })
-    }
-
-    pub fn associate_path_matches(&self, path: &Path) -> bool {
-        self.rules_matches(
-            path,
-            &[
-                (MatchRules::Equal, &self.name),
-                (MatchRules::Equal, &self.bundle_name),
-                (MatchRules::Equal, &self.organization),
-                (MatchRules::Contain, &self.bundle_id),
-            ],
-        )
-        // path_equals_ignore_case(path, &self.name)
-        //     || path_equals_ignore_case(path, &self.bundle_name)
-        //     || path_equals_ignore_case(path, &self.organization)
-        //     || path_contains_ignore_case(path, &self.bundle_id)
-    }
-
-    pub fn rules_matches(&self, path: &Path, rules: &[(MatchRules, &str)]) -> bool {
-        rules
-            .iter()
-            .any(|(rule, value)| rule.match_path(path, value))
-    }
-}
-
-impl Default for AppInfo {
-    fn default() -> Self {
-        Self {
-            path: PathBuf::new(),
-            name: String::new(),
-            bundle_id: String::new(),
-            bundle_name: String::new(),
-            organization: String::new(),
-        }
     }
 }

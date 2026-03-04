@@ -227,16 +227,29 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         state.status.message = Some("App moved to Trash".to_string());
                     } else {
                         let failed_clone = failed_paths.clone();
-                        state.cleaner.app_data.associate_files = failed_paths
-                            .into_iter()
-                            .map(|(path, _reason)| {
-                                let label = path
-                                    .file_name()
-                                    .map(|n| n.to_string_lossy().to_string())
-                                    .unwrap_or_else(|| path.to_string_lossy().to_string());
-                                (path, label)
-                            })
-                            .collect();
+                        // state.cleaner.app_data.associate_files = failed_paths
+                        //     .into_iter()
+                        //     .map(|(path, _reason)| {
+                        //         let label = path
+                        //             .file_name()
+                        //             .map(|n| n.to_string_lossy().to_string())
+                        //             .unwrap_or_else(|| path.to_string_lossy().to_string());
+                        //         (path, label)
+                        //     })
+                        //     .collect();
+
+                        state.cleaner.app_data.associate_files.replace(
+                            failed_paths
+                                .into_iter()
+                                .map(|(path, _reason)| {
+                                    let label = path
+                                        .file_name()
+                                        .map(|n| n.to_string_lossy().to_string())
+                                        .unwrap_or_else(|| path.to_string_lossy().to_string());
+                                    (path, label)
+                                })
+                                .collect(),
+                        );
 
                         // Build the message from the actual failed paths
                         // group by reason

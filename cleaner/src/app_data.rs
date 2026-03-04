@@ -1,20 +1,19 @@
 mod app_info;
 mod app_process;
+mod associate_files;
 mod locations_scan;
 mod log_receipt;
+mod plist_reader;
 
 pub use app_info::AppInfo;
 pub use app_process::AppProcess;
-pub use locations_scan::LocationsScan;
+pub use associate_files::AssociateFiles;
+pub use locations_scan::{LocationsScan, SandboxContainerLocation};
 pub use log_receipt::LogReceipt;
+pub use plist_reader::PlistReader;
 
 use anyhow::Result;
-use rayon::prelude::*;
-use std::collections::HashSet;
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use walkdir::WalkDir;
 
 #[cfg(debug_assertions)]
 use common_debug::debug_dev;
@@ -24,7 +23,7 @@ pub struct AppData {
     pub app: AppInfo,
     pub app_process: Vec<AppProcess>,
     pub log: LogReceipt,
-    pub associate_files: Vec<(PathBuf, String)>,
+    pub associate_files: AssociateFiles,
 }
 
 impl AppData {
@@ -35,10 +34,8 @@ impl AppData {
         Ok(Self {
             app: app_info,
             app_process: Vec::new(),
-            log: LogReceipt {
-                bom_file: Vec::new(),
-            },
-            associate_files: Vec::new(),
+            log: LogReceipt::default(),
+            associate_files: AssociateFiles::default(),
         })
     }
 
@@ -68,96 +65,18 @@ impl AppData {
     where
         F: Fn(usize, &Path) + Send + Sync,
     {
-        let counter = Arc::new(AtomicUsize::new(0));
-        let progress = Arc::new(in_progress);
-
-        // Parallel
-        let results: Vec<(PathBuf, String)> = locations
-            .paths
-            .par_iter()
-            .filter(|base| base.exists())
-            .map(|base| {
-                WalkDir::new(base)
-                    .max_depth(3)
-                    .into_iter()
-                    .filter_map(Result::ok)
-                    .filter(|entry| entry.file_type().is_file() || entry.file_type().is_dir())
-                    .flat_map(|entry| {
-                        let path_buf = entry.path().to_path_buf();
-                        let mut matches = Vec::new();
-
-                        if self.app.associate_path_matches(&path_buf) {
-                            matches.push((
-                                path_buf.clone(),
-                                path_buf.file_name().unwrap().to_string_lossy().to_string(),
-                            ));
-                        }
-
-                        // Batched atomic progress every 256 files
-                        let n = counter.fetch_add(1, Ordering::Relaxed) + 1;
-                        if n.is_multiple_of(256) {
-                            progress(n, &path_buf);
-                        }
-
-                        matches.into_iter()
-                    })
-                    .collect::<Vec<_>>()
-            })
-            .reduce(Vec::new, |mut acc, v| {
-                acc.extend(v);
-                acc
-            }); // Collect directly without per-base Vec
-
-        // Deduplicate once at the end
-        let mut seen = HashSet::new();
-
-        let unique_results: Vec<(PathBuf, String)> = results
-            .into_iter()
-            .filter(|(p, _)| seen.insert(p.clone()))
-            .collect();
-
-        // remove child path if the parent in the list
-        // so it not mess with the list when move to trash
-        let mut sorted = unique_results;
-        sorted.sort_by_key(|(p, _)| p.components().count());
-
-        let mut filtered: Vec<(PathBuf, String)> = Vec::new();
-
-        'parent_filter: for (path, name) in sorted {
-            for (existing_path, _) in &filtered {
-                if path.starts_with(existing_path) {
-                    continue 'parent_filter;
-                }
-            }
-            filtered.push((path, name));
-        }
-
-        // Build the indexed list including the app itself
-        // self.set_all_associate_file(unique_results);
-        self.set_all_associate_file(filtered);
-    }
-
-    /// Update associate_files with given list and include app itself
-    fn set_all_associate_file(&mut self, files: Vec<(PathBuf, String)>) {
-        // Start with enumerated files
-        let mut path_asc: Vec<(PathBuf, String)> = files.into_iter().collect();
-
-        // Append the app itself
-        path_asc.push((self.app.path.clone(), self.app.name.clone()));
-
-        self.associate_files = path_asc;
+        self.associate_files
+            .scan_associate_files(&self.app, locations, in_progress);
     }
 
     // ===============All Associate file with enumerate==================
     pub fn all_associate_entries_enumerate(&self) -> Vec<(usize, (PathBuf, String))> {
-        let result: Vec<(usize, (PathBuf, String))> = self
+        self.associate_files
             .associate_files
             .iter()
             .enumerate()
             .map(|(i, (path, label))| (i, (path.clone(), label.clone())))
-            .collect();
-
-        result
+            .collect()
     }
 
     // =======Save All Bom Log that was founded==============
@@ -173,6 +92,7 @@ impl AppData {
         self.app = AppInfo::default();
         self.app_process.clear();
         self.log = LogReceipt::default();
-        self.associate_files.clear();
+        // self.associate_files.clear();
+        self.associate_files = AssociateFiles::default();
     }
 }

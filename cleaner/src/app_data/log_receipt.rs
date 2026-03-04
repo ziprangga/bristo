@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::app_data::AppInfo;
 use crate::app_data::LocationsScan;
-use crate::app_data::app_info::MatchRules;
+use crate::rules::MatchRules;
 use crate::syscom::run_lsbom_command;
 
 #[derive(Debug, Default, Clone)]
@@ -21,15 +21,12 @@ impl LogReceipt {
                 for entry in entries.filter_map(|e| e.ok()) {
                     let path = entry.path();
                     if path.extension().map(|ext| ext == "bom").unwrap_or(false)
-                        && app.rules_matches(
-                            &path,
-                            &[
-                                (MatchRules::Contain, &app.name),
-                                (MatchRules::Contain, &app.bundle_name),
-                                (MatchRules::Contain, &app.organization),
-                                (MatchRules::Contain, &app.bundle_id),
-                            ],
-                        )
+                        && MatchRules::new()
+                            .contain(&app.name)
+                            .contain(&app.bundle_name)
+                            .contain(&app.organization)
+                            .contain(&app.bundle_id)
+                            .check(&path)
                     {
                         bom_files.push(path);
                     }
