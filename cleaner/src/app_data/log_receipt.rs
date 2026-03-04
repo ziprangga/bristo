@@ -14,8 +14,8 @@ pub struct LogReceipt {
 
 impl LogReceipt {
     /// Find BOM files for the given app
-    pub fn find_bom_files(app: &AppInfo, locations: &LocationsScan) -> Self {
-        let mut bom_files = Vec::new();
+    pub fn find_bom_files(&mut self, app: &AppInfo, locations: &LocationsScan) {
+        self.bom_file.clear();
         for dir in locations.receipts_dirs() {
             if let Ok(entries) = std::fs::read_dir(&dir) {
                 for entry in entries.filter_map(|e| e.ok()) {
@@ -23,19 +23,15 @@ impl LogReceipt {
                     if path.extension().map(|ext| ext == "bom").unwrap_or(false)
                         && MatchRules::new()
                             .contain(&app.name)
-                            .contain(&app.bundle_name)
+                            .contain(&app.bundle_executable_name)
                             .contain(&app.organization)
                             .contain(&app.bundle_id)
                             .check(&path)
                     {
-                        bom_files.push(path);
+                        self.bom_file.push(path);
                     }
                 }
             }
-        }
-
-        Self {
-            bom_file: bom_files,
         }
     }
 

@@ -55,7 +55,7 @@ impl AppData {
     }
 
     pub fn find_log_bom(&mut self, locations: &LocationsScan) {
-        self.log = LogReceipt::find_bom_files(&self.app, locations);
+        self.log.find_bom_files(&self.app, locations);
     }
 
     // Scan all file associate from list of location
@@ -92,7 +92,6 @@ impl AppData {
         self.app = AppInfo::default();
         self.app_process.clear();
         self.log = LogReceipt::default();
-        // self.associate_files.clear();
         self.associate_files = AssociateFiles::default();
     }
 }

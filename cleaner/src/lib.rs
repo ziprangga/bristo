@@ -145,7 +145,7 @@ impl Cleaner {
     pub fn print_summary(&self) {
         println!("App Name: {}", self.app_data.app.name);
         println!("Bundle ID: {}", self.app_data.app.bundle_id);
-        println!("Bundle Name: {}", self.app_data.app.bundle_name);
+        println!("Bundle Name: {}", self.app_data.app.bundle_executable_name);
 
         println!("\nRunning processes:");
         for p in &self.app_data.app_process {

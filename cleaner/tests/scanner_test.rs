@@ -88,7 +88,7 @@ fn test_kill_processes_safe() -> anyhow::Result<()> {
         path: app_path,
         name: "NonExistent.app".to_string(),
         bundle_id: "com.example.test".to_string(),
-        bundle_name: "NonExistent".to_string(),
+        bundle_executable_name: "NonExistent".to_string(),
         organization: "example".to_string(),
     };
     let processes = AppProcess::find_app_processes(&app_info);

@@ -15,23 +15,16 @@ pub struct AppProcess {
 }
 
 impl AppProcess {
-    pub fn new(pid: i32, command: String, process_name: String) -> Self {
-        Self {
-            pid,
-            command,
-            process_name,
-        }
-    }
-
+    // Scan process running for app from AppInfo data
     pub fn find_app_processes(app: &AppInfo) -> Vec<Self> {
         let mut sys = System::new();
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
         let patterns = [
-            app.bundle_name.clone(),
+            app.bundle_executable_name.clone(),
             app.bundle_id.clone(),
             app.organization.clone(),
-            format!("{} Helper", app.bundle_name),
+            format!("{} Helper", app.bundle_executable_name),
         ];
 
         sys.processes()
@@ -62,11 +55,12 @@ impl AppProcess {
                     .any(|pat| cmd_line.contains(pat) || process_name.contains(pat));
 
                 if is_match {
-                    Some(Self::new(
-                        pid.as_u32() as i32,
-                        cmd_line,
-                        process_name.into_owned(),
-                    ))
+                    // Contruct the result
+                    Some(Self {
+                        pid: pid.as_u32() as i32,
+                        command: cmd_line,
+                        process_name: process_name.into_owned(),
+                    })
                 } else {
                     None
                 }

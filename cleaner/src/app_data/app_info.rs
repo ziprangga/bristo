@@ -12,7 +12,7 @@ pub struct AppInfo {
     pub path: PathBuf,
     pub name: String,
     pub bundle_id: String,
-    pub bundle_name: String,
+    pub bundle_executable_name: String,
     pub organization: String,
 }
 
@@ -54,7 +54,7 @@ impl AppInfo {
             })
             .ok_or_else(|| anyhow!("Failed to determine app name for {}", app_path.display()))?;
 
-        let executable_name = plist
+        let bundle_executable_name = plist
             .executable_name()
             .ok_or_else(|| anyhow!("CFBundleExecutable not found in {}", plist_path.display()))?;
 
@@ -62,18 +62,18 @@ impl AppInfo {
 
         debug_dev!(
             "path: {}, name: {}, bundle_id: {}, bundle_name: {}, organization: {}",
-            app_path.to_string_lossy(),
-            app_name.to_string(),
-            bundle_id.to_string(),
-            executable_name.to_string(),
+            app_path.display(),
+            app_name,
+            bundle_id,
+            bundle_executable_name,
             organization,
         );
 
         Ok(Self {
             path: app_path.to_path_buf(),
-            name: app_name.to_string(),
-            bundle_id: bundle_id.to_string(),
-            bundle_name: executable_name.to_string(),
+            name: app_name,
+            bundle_id,
+            bundle_executable_name,
             organization,
         })
     }

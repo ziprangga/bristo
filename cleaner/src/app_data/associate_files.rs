@@ -89,7 +89,7 @@ impl AssociateFiles {
                         let mut matches = Vec::new();
                         let rules = MatchRules::new()
                             .equal(&app_info.name)
-                            .equal(&app_info.bundle_name)
+                            .equal(&app_info.bundle_executable_name)
                             .equal(&app_info.organization)
                             .contain(&app_info.bundle_id)
                             .check(&path_buf);
