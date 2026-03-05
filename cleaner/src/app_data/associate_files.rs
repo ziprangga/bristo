@@ -22,6 +22,7 @@ impl AssociateFiles {
     pub fn replace(&mut self, files: Vec<(PathBuf, String)>) {
         self.associate_files = files;
     }
+
     // Scan all file associate from list of location
     // for huge directory and try using walkdir + rayon
     // use in_progress as emitter status to caller
@@ -33,11 +34,11 @@ impl AssociateFiles {
     ) where
         F: Fn(usize, &Path) + Send + Sync,
     {
-        let unique_results = self.find_and_add_associate_files(app_info, locations, in_progress);
+        let results = self.find_and_add_associate_files(app_info, locations, in_progress);
 
         // remove child path if the parent in the list
         // so it not mess with the list when move to trash
-        let mut sorted = unique_results;
+        let mut sorted = results;
         sorted.sort_by_key(|(p, _)| p.components().count());
 
         let mut filtered: Vec<(PathBuf, String)> = Vec::new();
@@ -56,6 +57,10 @@ impl AssociateFiles {
 
         let container_matches = self.find_container_dirs(app_info);
         merged.extend(container_matches);
+
+        // Deduplicate once after merge
+        let mut seen_unique = HashSet::new();
+        merged.retain(|(p, _)| seen_unique.insert(p.clone()));
 
         // Build the indexed list including the app itself
         self.set_all_associate_file(app_info, merged);
@@ -78,12 +83,12 @@ impl AssociateFiles {
             .paths
             .par_iter()
             .filter(|base| base.exists())
-            .map(|base| {
+            .flat_map_iter(|base| {
                 WalkDir::new(base)
                     .max_depth(3)
                     .into_iter()
                     .filter_map(Result::ok)
-                    .filter(|entry| entry.file_type().is_file() || entry.file_type().is_dir())
+                    // .filter(|entry| entry.file_type().is_file() || entry.file_type().is_dir())
                     .flat_map(|entry| {
                         let path_buf = entry.path().to_path_buf();
                         let mut matches = Vec::new();
@@ -111,23 +116,26 @@ impl AssociateFiles {
                     })
                     .collect::<Vec<_>>()
             })
-            .reduce(Vec::new, |mut acc, v| {
-                acc.extend(v);
-                acc
-            }); // Collect directly without per-base Vec
-
-        // Deduplicate once at the end
-        let mut seen = HashSet::new();
-
-        let unique_results: Vec<(PathBuf, String)> = results
-            .into_iter()
-            .filter(|(p, _)| seen.insert(p.clone()))
             .collect();
+        // // Collect directly without per-base Vec
+        // .reduce(Vec::new, |mut acc, v| {
+        //     acc.extend(v);
+        //     acc
+        // });
 
-        unique_results
+        // // Deduplicate once at the end
+        // let mut seen = HashSet::new();
+        // let unique_results: Vec<(PathBuf, String)> = results
+        // .into_iter()
+        // .filter(|(p, _)| seen.insert(p.clone()))
+        // .collect();
+        // unique_results
+
+        results
     }
 
     // Special sandbox container scanner for app that using uuid folder name
+    // or for app that install from app store
     fn find_container_dirs(&self, app_info: &AppInfo) -> Vec<(PathBuf, String)> {
         let containers_dir = SandboxContainerLocation::new();
         let patterns = containers_dir.sandbox_pattern();
@@ -160,8 +168,19 @@ impl AssociateFiles {
                                         .contain(&app_info.bundle_id)
                                         .check(&file_path);
 
-                                    if file_path.is_file() && rules {
-                                        Some((path.clone(), app_info.name.clone()))
+                                    if rules {
+                                        let folder_name = path
+                                            .file_name()
+                                            .map(|n| n.to_string_lossy().to_string())
+                                            .unwrap_or_default();
+
+                                        let display_name = if folder_name == app_info.bundle_id {
+                                            folder_name
+                                        } else {
+                                            app_info.name.clone()
+                                        };
+
+                                        Some((path.clone(), display_name))
                                     } else {
                                         None
                                     }
