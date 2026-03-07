@@ -14,7 +14,6 @@ status = { workspace = true }
 cleaner = { workspace = true }
 
 # ====================
-log = { workspace = true }
 anyhow = { workspace = true }
 rfd = { workspace = true }
 tokio = { workspace = true }

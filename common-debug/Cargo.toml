@@ -8,5 +8,5 @@ default = []
 debug-dev = ["env_logger"]
 
 [dependencies]
-log = { workspace = true }
+log = "0.4"
 env_logger = { version = "0.11", optional = true }

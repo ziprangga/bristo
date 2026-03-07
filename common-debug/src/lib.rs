@@ -1,3 +1,4 @@
+pub use log;
 // -------------------------------
 // Debug-only Logger Init
 // -------------------------------
@@ -27,7 +28,7 @@ macro_rules! debug_dev {
         #[cfg(debug_assertions)]
         // #[cfg(all(debug_assertions, feature = "debug-dev"))]
         {
-            log::debug!($($arg)*);
+            $crate::log::debug!($($arg)*);
         }
     };
 }
