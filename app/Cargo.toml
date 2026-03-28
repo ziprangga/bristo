@@ -27,7 +27,7 @@ iced = { workspace = true }
 name = "Bristo"
 identifier = "com.ziprangga.Bristo"
 icon = ["assets/Bristo.icns"]
-version = "0.1.0"
 copyright = "Copyright (c) 2026 ziprangga. Licensed under MIT or Apache-2.0."
 category = "Utilities"
 short_description = "Application Uninstaller"
+long_description = "Lightweight macOS cleanup tool built with a simple GUI, It helps safely inspect and remove unnecessary application files, including protected locations, BOM logs, and app metadata"
