@@ -8,12 +8,12 @@ name = "Bristo"
 path = "src/main.rs"
 
 [dependencies]
-common-debug = { workspace = true }
 widget = { workspace = true }
 status = { workspace = true }
 cleaner = { workspace = true }
 
 # ====================
+mini-logger = { workspace = true }
 anyhow = { workspace = true }
 rfd = { workspace = true }
 tokio = { workspace = true }

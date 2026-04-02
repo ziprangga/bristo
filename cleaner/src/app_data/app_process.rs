@@ -5,7 +5,7 @@ use sysinfo::{ProcessesToUpdate, System};
 
 use crate::AppInfo;
 use crate::syscom::kill_pids;
-use common_debug::debug_dev;
+use mini_logger::debug;
 
 #[derive(Debug, Default, Clone)]
 pub struct AppProcess {
@@ -41,12 +41,9 @@ impl AppProcess {
                 // Convert process.name() to string for pattern matching
                 let process_name = process.name().to_string_lossy();
 
-                debug_dev!(
+                debug!(
                     "PID {}: cmd_line = '{}', process = '{}', checking patterns {:?}",
-                    pid,
-                    cmd_line,
-                    process_name,
-                    patterns
+                    pid, cmd_line, process_name, patterns
                 );
 
                 // Match if command line contains pattern OR process name contains pattern

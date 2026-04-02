@@ -13,10 +13,8 @@ pub use log_receipt::LogReceipt;
 pub use plist_reader::PlistReader;
 
 use anyhow::Result;
+use mini_logger::debug;
 use std::path::{Path, PathBuf};
-
-#[cfg(debug_assertions)]
-use common_debug::debug_dev;
 
 #[derive(Debug, Default, Clone)]
 pub struct AppData {
@@ -43,13 +41,10 @@ impl AppData {
         self.app_process = AppProcess::find_app_processes(&self.app);
 
         // debug list of the app process
-        #[cfg(debug_assertions)]
         for _p in &self.app_process {
-            debug_dev!(
+            debug!(
                 "list of process app: PID {}: cmd_line = '{}' name = '{}'",
-                _p.pid,
-                _p.command,
-                _p.process_name
+                _p.pid, _p.command, _p.process_name
             );
         }
     }

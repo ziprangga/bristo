@@ -1,15 +1,3 @@
-use futures::StreamExt;
-use iced::{Event, Subscription, Task, window};
-use std::collections::HashMap;
-use std::path::Path;
-use std::path::PathBuf;
-use std::sync::Arc;
-use tokio_stream::wrappers::ReceiverStream;
-
-use common_debug::debug_dev;
-use status::setup_status_emitter;
-use status::status_event::StatusEvent;
-
 use crate::app_modal::ModalAskMessage;
 use crate::app_state::{AppMessage, AppState};
 use crate::app_status::StatusMessage;
@@ -20,6 +8,16 @@ use crate::app_task::set_input_path;
 use crate::app_task::set_output_path;
 use crate::app_task::trash_app_async;
 use crate::app_task::{add_app, open_loc_async};
+use futures::StreamExt;
+use iced::{Event, Subscription, Task, window};
+use mini_logger::debug;
+use status::setup_status_emitter;
+use status::status_event::StatusEvent;
+use std::collections::HashMap;
+use std::path::Path;
+use std::path::PathBuf;
+use std::sync::Arc;
+use tokio_stream::wrappers::ReceiverStream;
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
@@ -159,7 +157,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::OpenSelectedPath(index) => {
             state.selected_file = Some(index);
-            debug_dev!("Clicked path: {:?}", index);
+            debug!("Clicked path: {:?}", index);
 
             let entries = state.cleaner.app_data.all_associate_entries_enumerate();
 

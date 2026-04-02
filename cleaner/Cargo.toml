@@ -5,7 +5,7 @@ edition = { workspace = true }
 
 
 [dependencies]
-common-debug = { workspace = true }
+mini-logger = { workspace = true }
 status = { workspace = true }
 
 # ==============

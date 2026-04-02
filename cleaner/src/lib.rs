@@ -5,11 +5,10 @@ pub use app_data::*;
 pub use rules::*;
 
 use anyhow::Result;
+use mini_logger::debug;
 use status::StatusEmitter;
 use std::path::Path;
 use std::path::PathBuf;
-
-use common_debug::debug_dev;
 
 #[derive(Debug, Default, Clone)]
 pub struct Cleaner {
@@ -118,7 +117,7 @@ impl Cleaner {
         // Determine the folder
         let app_log_folder =
             Path::new(log_dir).join(format!("{}_bom_log", &self.app_data.app.name));
-        debug_dev!("Creating folder: {}", app_log_folder.display());
+        debug!("Creating folder: {}", app_log_folder.display());
 
         // Call the LogReceipt function
         self.app_data.save_bom_log_app(&app_log_folder)

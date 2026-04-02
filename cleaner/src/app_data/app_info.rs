@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use common_debug::debug_dev;
+use mini_logger::debug;
 
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
@@ -37,7 +37,7 @@ impl AppInfo {
             let selected = upper
                 .ok_or_else(|| anyhow::anyhow!("Info.plist not found in {}", app_path.display()))?;
 
-            debug_dev!("Info.plist selected from: {}", selected.to_string_lossy());
+            debug!("Info.plist selected from: {}", selected.to_string_lossy());
 
             plist_path = selected;
         }
@@ -60,7 +60,7 @@ impl AppInfo {
 
         let organization = plist.organization().unwrap_or_default();
 
-        debug_dev!(
+        debug!(
             "path: {}, name: {}, bundle_id: {}, bundle_name: {}, organization: {}",
             app_path.display(),
             app_name,
