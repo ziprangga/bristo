@@ -22,7 +22,7 @@ rayon = "1.11"
 sysinfo = "0.37"
 
 # ====================
-mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false}
+mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false, tag = "v0.1.1"}
 anyhow = "1.0.100"
 tokio = { version = "1.49", features = ["full"] }
 futures = "0.3.31"

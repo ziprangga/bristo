@@ -1808,8 +1808,8 @@ dependencies = [
 
 [[package]]
 name = "mini-logger"
-version = "0.1.0"
-source = "git+https://github.com/ziprangga/mini-logger.git#a7b354a0da0a9f9aad9af19cbdf8d5c160020038"
+version = "0.1.1"
+source = "git+https://github.com/ziprangga/mini-logger.git?tag=v0.1.1#ea59bf77f8e069149051b2247770b27cfa24708b"
 dependencies = [
  "chrono",
 ]
