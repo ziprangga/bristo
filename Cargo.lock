@@ -94,13 +94,11 @@ version = "0.1.2"
 dependencies = [
  "anyhow",
  "cleaner",
- "futures",
  "iced",
  "mini-logger",
  "rfd",
- "status",
+ "simple-status",
  "tokio",
- "tokio-stream",
  "widget",
 ]
 
@@ -488,7 +486,7 @@ dependencies = [
  "objc2-foundation 0.3.2",
  "plist",
  "rayon",
- "status",
+ "simple-status",
  "sysinfo",
  "unicode-normalization",
  "walkdir",
@@ -2905,6 +2903,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
+name = "simple-status"
+version = "0.1.3"
+source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.3#e1653eca009a4b3896ec00a6999896d9a7febc97"
+dependencies = [
+ "futures",
+ "tokio",
+]
+
+[[package]]
 name = "skrifa"
 version = "0.37.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3063,13 +3070,6 @@ name = "static_assertions"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
-
-[[package]]
-name = "status"
-version = "0.1.2"
-dependencies = [
- "tokio",
-]
 
 [[package]]
 name = "strict-num"
@@ -3301,17 +3301,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
-]
-
-[[package]]
-name = "tokio-stream"
-version = "0.1.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "32da49809aab5c3bc678af03902d4ccddea2a87d028d86392a4b1560c6906c70"
-dependencies = [
- "futures-core",
- "pin-project-lite",
- "tokio",
 ]
 
 [[package]]

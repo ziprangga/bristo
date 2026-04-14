@@ -6,7 +6,7 @@ pub use rules::*;
 
 use anyhow::Result;
 use mini_logger::debug;
-use status::StatusEmitter;
+use simple_status::{Emitter, status_emit};
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -20,30 +20,24 @@ impl Cleaner {
         Self::default()
     }
 
-    pub fn new_app(path: &Path, status: Option<&StatusEmitter>) -> Result<Self> {
+    pub fn new_app(path: &Path, status: Option<&Emitter>) -> Result<Self> {
         let mut app_data = AppData::new(path)?;
 
-        if let Some(s) = status {
-            s.with_message(format!(
-                "Scanning running processes for '{}'",
-                app_data.app.name
-            ))
-            .emit();
-        }
+        status_emit!(
+            status,
+            "Scanning running processes for '{}'",
+            app_data.app.name
+        );
 
         // Find running processes
         app_data.find_pid_and_command();
 
-        if let Some(s) = status {
-            let total_process = app_data.app_process.len();
-            s.with_message(format!("Found process {}", total_process))
-                .emit();
-        }
+        status_emit!(status, "Found process {}", app_data.app_process.len());
 
         Ok(Self { app_data })
     }
 
-    pub fn kill_app_process(&self, status: Option<&StatusEmitter>) -> Result<()> {
+    pub fn kill_app_process(&self, status: Option<&Emitter>) -> Result<()> {
         if self.app_data.app_process.is_empty() {
             return Ok(());
         }
@@ -51,31 +45,28 @@ impl Cleaner {
         let killed_count =
             AppProcess::kill_app_processes(&self.app_data.app.name, &self.app_data.app_process)?;
 
-        if let Some(s) = status {
-            s.with_stage("Completed")
-                .with_message("All processes killed")
-                .with_total(killed_count)
-                .emit();
-        }
+        status_emit!(
+            status,
+            stage: "Completed",
+            total: killed_count,
+            message: "All processes killed",);
 
         Ok(())
     }
 
     /// Scan an app at the given path and return AppData
-    pub fn scan_app_data(&mut self, status: Option<&StatusEmitter>) -> Result<&Self> {
-        if let Some(s) = status {
-            s.with_message(format!(
-                "Scanning logs and associated files for '{}'",
-                self.app_data.app.name
-            ))
-            .emit();
-        }
+    pub fn scan_app_data(&mut self, status: Option<&Emitter>) -> Result<&Self> {
+        status_emit!(
+            status,
+            "Scanning logs and associated files for '{}'",
+            self.app_data.app.name
+        );
 
-        if let Some(s) = status {
-            s.with_stage("started")
-                .with_message("Finding BOM logs...")
-                .emit();
-        }
+        status_emit!(
+            status,
+            stage: "Started",
+            message: "Finding BOM logs...",
+        );
 
         let locations = LocationsScan::new();
 
@@ -83,31 +74,33 @@ impl Cleaner {
 
         let total_bom_file = self.app_data.log.bom_file.len();
 
-        if let Some(s) = status {
-            s.with_stage("completed")
-                .with_total(total_bom_file)
-                .with_message("BOM logs scan completed")
-                .emit();
-        }
+        status_emit!(
+            status,
+            stage: "Completed",
+            total: total_bom_file,
+            message: "BOM logs scan completed",
+        );
 
-        if let Some(s) = status {
-            s.with_stage("started")
-                .with_message("Finding associated files...")
-                .emit();
-        }
+        status_emit!(
+            status,
+            stage: "Started",
+            message: "Finding associated files...",
+        );
 
         self.app_data
             .find_associate_files(&locations, |cur, _path| {
-                if let Some(s) = status {
-                    s.with_stage("Searching").with_current(cur).emit();
-                }
+                status_emit!(
+                    status,
+                    stage: "Searching",
+                    current: cur,
+                );
             });
 
-        if let Some(s) = status {
-            s.with_stage("completed")
-                .with_message("Associated files scan completed")
-                .emit();
-        }
+        status_emit!(
+            status,
+            stage: "Completed",
+            message: "Associated files scan completed",
+        );
 
         Ok(self)
     }

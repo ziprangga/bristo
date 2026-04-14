@@ -1,6 +1,5 @@
 mod app_modal;
 mod app_state;
-mod app_status;
 mod app_task;
 mod app_update;
 mod app_window;
@@ -12,7 +11,7 @@ use iced::{Size, Task, application, window};
 use mini_logger::debug;
 
 fn init() -> (AppState, Task<AppMessage>) {
-    let app_state = AppState::new();
+    let app_state = AppState::new(100);
     (app_state, Task::none())
 }
 

@@ -1,15 +1,14 @@
 use iced::widget::Column;
 use iced::widget::Stack;
 use iced::{
-    alignment,
-    widget::{container, row, text, Container, Row, Text},
-    Background, Border, Color, Padding,
+    Background, Border, Color, Padding, alignment,
+    widget::{Container, Row, Text, container, row, text},
 };
 use iced::{Element, Length};
 
 use crate::app_state::{AppMessage, AppState};
 use widget::button_style::{
-    blank_border_style, blank_btn_style, custom_btn_rounded_style, danger_style, CustomButton,
+    CustomButton, blank_border_style, blank_btn_style, custom_btn_rounded_style, danger_style,
 };
 use widget::drop_file::DropFile;
 use widget::list_view::{HeaderContent, HeaderWidget, ListView, RowContent, WidgetContent};
@@ -217,32 +216,18 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .padding([3, 20])
     .align_y(alignment::Vertical::Center);
 
-    let status_msg = state
-        .status
-        .view(|message_status| {
-            if let Some(message) = message_status {
-                container(
-                    text(message)
-                        .size(12)
-                        .width(Length::Fill)
-                        .center()
-                        .style(|_| text::Style {
-                            color: Some(Color::from_rgb8(200, 200, 200)),
-                        }),
-                )
-                .width(Length::Fill)
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
-                .into()
-            } else {
-                container(text("").width(Length::Fill).center())
-                    .width(Length::Fill)
-                    .align_x(alignment::Horizontal::Center)
-                    .align_y(alignment::Vertical::Center)
-                    .into()
-            }
-        })
-        .map(AppMessage::Status);
+    let status_msg = Container::new(
+        text(state.show_status.to_string())
+            .size(12)
+            .width(Length::Fill)
+            .center()
+            .style(|_| text::Style {
+                color: Some(Color::from_rgb8(200, 200, 200)),
+            }),
+    )
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
 
     let button_delete = Container::new(
         CustomButton::new("Move to Trash")

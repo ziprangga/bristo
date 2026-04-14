@@ -1,4 +1,3 @@
-// use std::path::Path;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -6,7 +5,7 @@ use anyhow::{Result, anyhow};
 use rfd::AsyncFileDialog;
 
 use cleaner::Cleaner;
-use status::StatusEmitter;
+use simple_status::Emitter;
 
 pub async fn set_input_path() -> Result<Arc<PathBuf>> {
     let file = AsyncFileDialog::new()
@@ -29,27 +28,24 @@ pub async fn set_output_path() -> Result<Arc<PathBuf>> {
     Ok(Arc::new(folder.path().to_path_buf()))
 }
 
-pub async fn add_app(path: PathBuf, status: Option<StatusEmitter>) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || Cleaner::new_app(&path, status.as_ref()))
+pub async fn add_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
+    tokio::task::spawn_blocking(move || Cleaner::new_app(&path, status.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Add application failed: {}", e))?
 }
 
 pub async fn kill_app_process_async(
     cleaner: Arc<Cleaner>,
-    status: Option<StatusEmitter>,
+    status: Option<Arc<Emitter>>,
 ) -> Result<()> {
-    tokio::task::spawn_blocking(move || cleaner.kill_app_process(status.as_ref()))
+    tokio::task::spawn_blocking(move || cleaner.kill_app_process(status.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Confirm and kill process failed: {}", e))?
 }
 
-pub async fn scan_app_async(
-    mut cleaner: Cleaner,
-    status: Option<StatusEmitter>,
-) -> Result<Cleaner> {
+pub async fn scan_app_async(mut cleaner: Cleaner, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
     tokio::task::spawn_blocking(move || {
-        let _ = cleaner.scan_app_data(status.as_ref());
+        let _ = cleaner.scan_app_data(status.as_deref());
         cleaner
     })
     .await

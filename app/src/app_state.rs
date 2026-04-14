@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use crate::app_modal::{ModalAsk, ModalAskMessage};
-use crate::app_status::{Status, StatusMessage};
 use cleaner::Cleaner;
+use simple_status::{ChannelKind, Channels, Status, init_channels};
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -25,7 +25,7 @@ pub enum AppMessage {
     TrashApp,
     DeletedApp(Result<Vec<(PathBuf, String)>, String>),
     ClearList,
-    Status(StatusMessage),
+    ShowStatus(Status),
 
     NoOperations,
 }
@@ -34,7 +34,8 @@ pub enum AppMessage {
 pub struct AppState {
     pub input_file: PathBuf,
     pub output_file: PathBuf,
-    pub status: Status,
+    pub show_status: Status,
+    pub channel: Channels,
 
     pub cleaner: Cleaner,
     pub selected_file: Option<usize>,
@@ -43,14 +44,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new() -> Self {
+    pub fn new(buffer: usize) -> Self {
         let input_file = PathBuf::new();
         let output_file = PathBuf::new();
-        let status = Status {
-            message: None,
-            event: None,
-            show_percentage: false,
-        };
+        let show_status = Status::default();
+        let channel = init_channels(buffer, ChannelKind::Broadcast);
 
         let cleaner = Cleaner::default();
         let selected_file = None;
@@ -61,7 +59,8 @@ impl AppState {
         Self {
             input_file,
             output_file,
-            status,
+            show_status,
+            channel,
             cleaner,
             selected_file,
             show_modal_ask,
@@ -74,6 +73,6 @@ impl AppState {
         self.output_file.clear();
         self.cleaner.reset();
         self.selected_file = None;
-        self.status.reset();
+        self.show_status.reset_event();
     }
 }

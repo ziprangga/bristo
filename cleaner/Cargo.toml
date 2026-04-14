@@ -6,7 +6,7 @@ edition = { workspace = true }
 
 [dependencies]
 mini-logger = { workspace = true }
-status = { workspace = true }
+simple-status = { workspace = true }
 
 # ==============
 anyhow = { workspace = true }

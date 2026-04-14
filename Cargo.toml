@@ -1,5 +1,5 @@
 [workspace]
-members = ["cleaner", "widget", "app", "status"]
+members = ["cleaner", "widget", "app"]
 
 resolver = "3"
 
@@ -12,7 +12,6 @@ license = "MIT or Apache-2.0"
 [workspace.dependencies]
 # ====================
 widget = { path = "widget" }
-status = { path = "status" }
 cleaner = { path = "cleaner" }
 
 # ====================
@@ -23,6 +22,7 @@ sysinfo = "0.37"
 
 # ====================
 mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false, tag = "v0.1.1"}
+simple-status = { git = "https://github.com/ziprangga/simple-status.git", tag = "v0.1.3"}
 anyhow = "1.0.100"
 tokio = { version = "1.49", features = ["full"] }
 futures = "0.3.31"

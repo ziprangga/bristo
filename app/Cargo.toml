@@ -9,16 +9,14 @@ path = "src/main.rs"
 
 [dependencies]
 widget = { workspace = true }
-status = { workspace = true }
 cleaner = { workspace = true }
 
 # ====================
+simple-status = { workspace = true }
 mini-logger = { workspace = true }
 anyhow = { workspace = true }
 rfd = { workspace = true }
 tokio = { workspace = true }
-tokio-stream = { workspace = true }
-futures = { workspace = true }
 iced = { workspace = true }
 
 
