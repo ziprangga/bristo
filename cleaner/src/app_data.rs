@@ -1,17 +1,14 @@
 mod app_info;
 mod app_process;
 mod associate_files;
-mod locations_scan;
 mod log_receipt;
-mod plist_reader;
 
 pub use app_info::AppInfo;
 pub use app_process::AppProcess;
 pub use associate_files::AssociateFiles;
-pub use locations_scan::{LocationsScan, SandboxContainerLocation};
 pub use log_receipt::LogReceipt;
-pub use plist_reader::PlistReader;
 
+use crate::locations_scan::LocationsScan;
 use anyhow::Result;
 use mini_logger::debug;
 use std::path::{Path, PathBuf};
@@ -44,7 +41,9 @@ impl AppData {
         for _p in &self.app_process {
             debug!(
                 "list of process app: PID {}: cmd_line = '{}' name = '{}'",
-                _p.pid, _p.command, _p.process_name
+                _p.pid(),
+                _p.as_command(),
+                _p.as_process_name()
             );
         }
     }
@@ -67,7 +66,7 @@ impl AppData {
     // ===============All Associate file with enumerate==================
     pub fn all_associate_entries_enumerate(&self) -> Vec<(usize, (PathBuf, String))> {
         self.associate_files
-            .associate_files
+            .as_associate_files()
             .iter()
             .enumerate()
             .map(|(i, (path, label))| (i, (path.clone(), label.clone())))
@@ -76,8 +75,8 @@ impl AppData {
 
     // =======Save All Bom Log that was founded==============
     pub fn save_bom_log_app(&self, log_dir: &Path) -> Result<()> {
-        if self.log.bom_file.is_empty() {
-            anyhow::bail!("No BOM files found for app: {}", self.app.name);
+        if self.log.is_empty() {
+            anyhow::bail!("No BOM files found for app: {}", self.app.as_name());
         }
 
         self.log.save_bom_log(log_dir)

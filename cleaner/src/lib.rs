@@ -1,7 +1,9 @@
 mod app_data;
+mod locations_scan;
 mod rules;
 mod syscom;
-pub use app_data::*;
+pub use app_data::{AppData, AppInfo, AppProcess, AssociateFiles, LogReceipt};
+pub use locations_scan::{LocationsScan, SandboxContainerLocation};
 pub use rules::*;
 
 use anyhow::Result;
@@ -26,7 +28,7 @@ impl Cleaner {
         status_emit!(
             status,
             "Scanning running processes for '{}'",
-            app_data.app.name
+            app_data.app.as_name()
         );
 
         // Find running processes
@@ -42,8 +44,10 @@ impl Cleaner {
             return Ok(());
         }
 
-        let killed_count =
-            AppProcess::kill_app_processes(&self.app_data.app.name, &self.app_data.app_process)?;
+        let killed_count = AppProcess::kill_app_processes(
+            self.app_data.app.as_name(),
+            &self.app_data.app_process,
+        )?;
 
         status_emit!(
             status,
@@ -59,7 +63,7 @@ impl Cleaner {
         status_emit!(
             status,
             "Scanning logs and associated files for '{}'",
-            self.app_data.app.name
+            self.app_data.app.as_name()
         );
 
         status_emit!(
@@ -72,7 +76,7 @@ impl Cleaner {
 
         self.app_data.find_log_bom(&locations);
 
-        let total_bom_file = self.app_data.log.bom_file.len();
+        let total_bom_file = self.app_data.log.count();
 
         status_emit!(
             status,
@@ -109,7 +113,7 @@ impl Cleaner {
     pub fn save_bom_logs(&self, log_dir: &Path) -> Result<()> {
         // Determine the folder
         let app_log_folder =
-            Path::new(log_dir).join(format!("{}_bom_log", &self.app_data.app.name));
+            Path::new(log_dir).join(format!("{}_bom_log", self.app_data.app.as_name()));
         debug!("Creating folder: {}", app_log_folder.display());
 
         // Call the LogReceipt function
@@ -135,17 +139,20 @@ impl Cleaner {
     /// Print a summary of the app data
     /// For CLI
     pub fn print_summary(&self) {
-        println!("App Name: {}", self.app_data.app.name);
-        println!("Bundle ID: {}", self.app_data.app.bundle_id);
-        println!("Bundle Name: {}", self.app_data.app.bundle_executable_name);
+        println!("App Name: {}", self.app_data.app.as_name());
+        println!("Bundle ID: {}", self.app_data.app.as_bundle_id());
+        println!(
+            "Bundle Name: {}",
+            self.app_data.app.as_bundle_executable_name()
+        );
 
         println!("\nRunning processes:");
         for p in &self.app_data.app_process {
-            println!("PID {}: {}", p.pid, p.command);
+            println!("PID {}: {}", p.pid(), p.as_command());
         }
 
         println!("\nLog BOM files:");
-        for log in &self.app_data.log.bom_file {
+        for log in self.app_data.log.as_bom_file() {
             println!("{}", log.display());
         }
 

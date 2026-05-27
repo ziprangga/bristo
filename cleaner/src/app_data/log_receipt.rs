@@ -2,14 +2,14 @@ use anyhow::{Context, Result};
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
 
-use crate::app_data::AppInfo;
-use crate::app_data::LocationsScan;
+use crate::app_data::app_info::AppInfo;
+use crate::locations_scan::LocationsScan;
 use crate::rules::MatchRules;
 use crate::syscom::run_lsbom_command;
 
 #[derive(Debug, Default, Clone)]
 pub struct LogReceipt {
-    pub bom_file: Vec<PathBuf>,
+    bom_file: Vec<PathBuf>,
 }
 
 impl LogReceipt {
@@ -22,10 +22,10 @@ impl LogReceipt {
                     let path = entry.path();
                     if path.extension().map(|ext| ext == "bom").unwrap_or(false)
                         && MatchRules::new()
-                            .contain(&app.name)
-                            .contain(&app.bundle_executable_name)
-                            .contain(&app.organization)
-                            .contain(&app.bundle_id)
+                            .contain(app.as_name())
+                            .contain(app.as_bundle_executable_name())
+                            .contain(app.as_organization())
+                            .contain(app.as_bundle_id())
                             .check(&path)
                     {
                         self.bom_file.push(path);
@@ -33,6 +33,21 @@ impl LogReceipt {
                 }
             }
         }
+    }
+
+    //// total of bom_file count
+    pub fn count(&self) -> usize {
+        self.bom_file.len()
+    }
+
+    //// check if bom_file is empty or not
+    pub fn is_empty(&self) -> bool {
+        self.bom_file.is_empty()
+    }
+
+    //// get bom file as reference
+    pub fn as_bom_file(&self) -> &Vec<PathBuf> {
+        &self.bom_file
     }
 
     //// Save all BOM files to the given log directory in parallel

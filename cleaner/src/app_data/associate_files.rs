@@ -1,5 +1,5 @@
 use crate::app_data::app_info::AppInfo;
-use crate::app_data::locations_scan::{LocationsScan, SandboxContainerLocation};
+use crate::locations_scan::{LocationsScan, SandboxContainerLocation};
 use crate::rules::MatchRules;
 
 use anyhow::Result;
@@ -12,7 +12,7 @@ use walkdir::WalkDir;
 
 #[derive(Debug, Default, Clone)]
 pub struct AssociateFiles {
-    pub associate_files: Vec<(PathBuf, String)>,
+    associate_files: Vec<(PathBuf, String)>,
 }
 
 impl AssociateFiles {
@@ -21,6 +21,11 @@ impl AssociateFiles {
     // like move to trash
     pub fn replace(&mut self, files: Vec<(PathBuf, String)>) {
         self.associate_files = files;
+    }
+
+    //// reference of associate files
+    pub fn as_associate_files(&self) -> &Vec<(PathBuf, String)> {
+        &self.associate_files
     }
 
     // Scan all file associate from list of location
@@ -93,10 +98,10 @@ impl AssociateFiles {
                         let path_buf = entry.path().to_path_buf();
                         let mut matches = Vec::new();
                         let rules = MatchRules::new()
-                            .equal(&app_info.name)
-                            .equal(&app_info.bundle_executable_name)
-                            .equal(&app_info.organization)
-                            .contain(&app_info.bundle_id)
+                            .equal(app_info.as_name())
+                            .equal(app_info.as_bundle_executable_name())
+                            .equal(app_info.as_organization())
+                            .contain(app_info.as_bundle_id())
                             .check(&path_buf);
 
                         if rules {
@@ -117,19 +122,6 @@ impl AssociateFiles {
                     .collect::<Vec<_>>()
             })
             .collect();
-        // // Collect directly without per-base Vec
-        // .reduce(Vec::new, |mut acc, v| {
-        //     acc.extend(v);
-        //     acc
-        // });
-
-        // // Deduplicate once at the end
-        // let mut seen = HashSet::new();
-        // let unique_results: Vec<(PathBuf, String)> = results
-        // .into_iter()
-        // .filter(|(p, _)| seen.insert(p.clone()))
-        // .collect();
-        // unique_results
 
         results
     }
@@ -165,7 +157,7 @@ impl AssociateFiles {
                                 .find_map(|entry| {
                                     let file_path = entry.path();
                                     let rules = MatchRules::new()
-                                        .contain(&app_info.bundle_id)
+                                        .contain(app_info.as_bundle_id())
                                         .check(&file_path);
 
                                     if rules {
@@ -174,10 +166,11 @@ impl AssociateFiles {
                                             .map(|n| n.to_string_lossy().to_string())
                                             .unwrap_or_default();
 
-                                        let display_name = if folder_name == app_info.bundle_id {
+                                        let display_name = if folder_name == app_info.as_bundle_id()
+                                        {
                                             folder_name
                                         } else {
-                                            app_info.name.clone()
+                                            app_info.as_name().to_string()
                                         };
 
                                         Some((path.clone(), display_name))
@@ -200,7 +193,7 @@ impl AssociateFiles {
         let mut path_asc: Vec<(PathBuf, String)> = files.into_iter().collect();
 
         // Append the app itself
-        path_asc.push((app_info.path.clone(), app_info.name.clone()));
+        path_asc.push((app_info.as_path().clone(), app_info.as_name().to_string()));
 
         self.associate_files = path_asc;
     }

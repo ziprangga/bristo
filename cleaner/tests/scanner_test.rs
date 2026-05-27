@@ -32,7 +32,7 @@ fn test_appinfo_from_temp_path() -> anyhow::Result<()> {
 
     // Now call your AppInfo function
     let app_info = cleaner::AppInfo::from_path(&app_path.to_path_buf())?;
-    assert_eq!(app_info.bundle_id, "com.example.test");
+    assert_eq!(app_info.as_bundle_id(), "com.example.test");
 
     // Optional: clean up
     let _ = fs::remove_dir_all(&app_path);
@@ -84,15 +84,22 @@ fn test_running_processes_mock() -> anyhow::Result<()> {
 fn test_kill_processes_safe() -> anyhow::Result<()> {
     // Use a dummy .app path
     let app_path: PathBuf = PathBuf::from("/Applications/NonExistent.app");
-    let app_info = cleaner::AppInfo {
-        path: app_path,
-        name: "NonExistent.app".to_string(),
-        bundle_id: "com.example.test".to_string(),
-        bundle_executable_name: "NonExistent".to_string(),
-        organization: "example".to_string(),
-    };
+    let app_info = cleaner::AppInfo::new(
+        app_path,
+        "NonExistent.app".to_string(),
+        "com.example.test".to_string(),
+        "NonExistent".to_string(),
+        "example".to_string(),
+    );
+    // let app_info = cleaner::AppInfo {
+    //     path: app_path,
+    //     name: "NonExistent.app".to_string(),
+    //     bundle_id: "com.example.test".to_string(),
+    //     bundle_executable_name: "NonExistent".to_string(),
+    //     organization: "example".to_string(),
+    // };
     let processes = AppProcess::find_app_processes(&app_info);
-    AppProcess::kill_app_processes(&app_info.name, &processes)?; // Safe: no processes exist
+    AppProcess::kill_app_processes(app_info.as_name(), &processes)?; // Safe: no processes exist
     Ok(())
 }
 

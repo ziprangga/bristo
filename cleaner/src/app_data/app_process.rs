@@ -3,15 +3,15 @@ use rayon::prelude::*;
 use std::ffi::OsString;
 use sysinfo::{ProcessesToUpdate, System};
 
-use crate::AppInfo;
+use crate::app_data::app_info::AppInfo;
 use crate::syscom::kill_pids;
 use mini_logger::debug;
 
 #[derive(Debug, Default, Clone)]
 pub struct AppProcess {
-    pub pid: i32,
-    pub command: String,
-    pub process_name: String,
+    pid: i32,
+    command: String,
+    process_name: String,
 }
 
 impl AppProcess {
@@ -21,10 +21,10 @@ impl AppProcess {
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
         let patterns = [
-            app.bundle_executable_name.clone(),
-            app.bundle_id.clone(),
-            app.organization.clone(),
-            format!("{} Helper", app.bundle_executable_name),
+            app.as_bundle_executable_name().to_string(),
+            app.as_bundle_id().to_string(),
+            app.as_organization().to_string(),
+            format!("{} Helper", app.as_bundle_executable_name()),
         ];
 
         sys.processes()
@@ -82,5 +82,20 @@ impl AppProcess {
         }
 
         Ok(killed_count)
+    }
+
+    //// get the copy of pid
+    pub fn pid(&self) -> i32 {
+        self.pid
+    }
+
+    //// get the reference of command
+    pub fn as_command(&self) -> &str {
+        &self.command
+    }
+
+    //// get the reference of process name
+    pub fn as_process_name(&self) -> &str {
+        &self.process_name
     }
 }
