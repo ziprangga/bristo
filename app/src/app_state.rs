@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
+use cleaner::TrashEntry;
 use simple_status::{ChannelKind, Channels, Status, init_channels};
 
 #[derive(Debug, Clone)]
@@ -13,6 +14,7 @@ pub enum AppMessage {
     ScanApp(Result<Cleaner, String>),
 
     ModalAsk(ModalAskMessage),
+    FindProcs(Result<Cleaner, String>),
     ConfirmKill(Result<Cleaner, String>),
 
     UpdateCleaner(Cleaner),
@@ -23,7 +25,7 @@ pub enum AppMessage {
     ExportFile,
 
     TrashApp,
-    DeletedApp(Result<Vec<(PathBuf, String)>, String>),
+    DeletedApp(Result<Vec<TrashEntry>, String>),
     ClearList,
     ShowStatus(Status),
 

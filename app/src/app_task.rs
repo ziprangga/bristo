@@ -5,6 +5,7 @@ use anyhow::{Result, anyhow};
 use rfd::AsyncFileDialog;
 
 use cleaner::Cleaner;
+use cleaner::TrashEntry;
 use simple_status::Emitter;
 
 pub async fn set_input_path() -> Result<Arc<PathBuf>> {
@@ -29,9 +30,21 @@ pub async fn set_output_path() -> Result<Arc<PathBuf>> {
 }
 
 pub async fn add_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || Cleaner::new_app(&path, status.as_deref()))
+    tokio::task::spawn_blocking(move || Cleaner::new_profile(&path, status.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Add application failed: {}", e))?
+}
+
+pub async fn find_app_process_async(
+    mut cleaner: Cleaner,
+    status: Option<Arc<Emitter>>,
+) -> Result<Cleaner> {
+    tokio::task::spawn_blocking(move || {
+        let _ = cleaner.find_app_process(status.as_deref());
+        cleaner
+    })
+    .await
+    .map_err(|e| anyhow::anyhow!("Find process failed: {}", e))
 }
 
 pub async fn kill_app_process_async(
@@ -45,7 +58,7 @@ pub async fn kill_app_process_async(
 
 pub async fn scan_app_async(mut cleaner: Cleaner, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
     tokio::task::spawn_blocking(move || {
-        let _ = cleaner.scan_app_data(status.as_deref());
+        let _ = cleaner.scan_app_profile(status.as_deref());
         cleaner
     })
     .await
@@ -64,8 +77,8 @@ pub async fn save_bom_logs_async(cleaner: Cleaner, log_dir: PathBuf) -> Result<(
         .map_err(|e| anyhow::anyhow!("Save bom  logs failed: {}", e))?
 }
 
-pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<(PathBuf, String)>> {
-    tokio::task::spawn_blocking(move || Cleaner::trash_all(&cleaner))
+pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<TrashEntry>> {
+    tokio::task::spawn_blocking(move || cleaner.trash_all_seq())
         .await
         .map_err(|e| anyhow::anyhow!("Move to trash failed: {}", e))?
 }

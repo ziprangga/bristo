@@ -26,15 +26,18 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     })
     .view();
 
-    let entries = state.cleaner.app_data.all_associate_entries_enumerate();
+    let entries = state.cleaner.all_entries_enumerate();
 
     let has_real_items = entries
         .iter()
-        .any(|(_, (path, _))| !path.as_os_str().is_empty());
+        .any(|(_, entry)| !entry.as_path().as_os_str().is_empty());
 
     let items = entries
         .into_iter()
-        .map(|(i, (path, label))| {
+        .map(|(i, entry)| {
+            let label = entry.as_name().to_string();
+            let path = entry.as_path().to_path_buf();
+
             // ===============
             let display_path = if let Ok(home) = std::env::var("HOME") {
                 if let Ok(stripped) = path.strip_prefix(&home) {
