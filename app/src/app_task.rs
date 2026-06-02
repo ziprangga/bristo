@@ -78,7 +78,7 @@ pub async fn save_bom_logs_async(cleaner: Cleaner, log_dir: PathBuf) -> Result<(
 }
 
 pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<TrashEntry>> {
-    tokio::task::spawn_blocking(move || cleaner.trash_all_seq())
+    tokio::task::spawn_blocking(move || cleaner.trash_all_entry())
         .await
         .map_err(|e| anyhow::anyhow!("Move to trash failed: {}", e))?
 }

@@ -8,10 +8,12 @@ use crate::app_task::set_input_path;
 use crate::app_task::set_output_path;
 use crate::app_task::trash_app_async;
 use crate::app_task::{add_app, open_loc_async};
+
 use cleaner::TrashStatus;
 use iced::{Event, Subscription, Task, futures::StreamExt, window};
 use mini_logger::debug;
 use simple_status::status;
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -256,18 +258,47 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             .cleaner
                             .replace_remaining_entries(remaining_entries.clone());
 
-                        let failed_count = remaining_entries
-                            .iter()
-                            .filter(|e| e.status() == TrashStatus::Failed)
-                            .count();
+                        let mut missing = 0usize;
+                        let mut grouped: HashMap<(TrashStatus, String), usize> = HashMap::new();
 
-                        let skipped_count = remaining_entries
-                            .iter()
-                            .filter(|e| e.status() == TrashStatus::Skipped)
-                            .count();
+                        for e in &remaining_entries {
+                            let path = e.entry().as_path();
 
-                        state.show_status =
-                            status!("{} failed, {} skipped", failed_count, skipped_count);
+                            if !path.exists() {
+                                missing += 1;
+                                continue;
+                            }
+
+                            let reason = e.reason().unwrap_or("Unknown").to_string();
+
+                            *grouped.entry((e.status(), reason)).or_insert(0) += 1;
+                        }
+
+                        let mut items: Vec<((TrashStatus, String), usize)> =
+                            grouped.into_iter().collect();
+
+                        items.sort_by_key(|((status, _reason), _count)| match status {
+                            TrashStatus::Failed => 0,
+                            TrashStatus::Skipped => 1,
+                        });
+
+                        let mut report = Vec::new();
+
+                        report.push(format!("{} item not moved", remaining_entries.len()));
+
+                        if missing > 0 {
+                            report.push(format!("{} items path not exist", missing));
+                        }
+
+                        for ((status, reason), count) in items {
+                            let label = match status {
+                                TrashStatus::Failed => "failed",
+                                TrashStatus::Skipped => "skipped",
+                            };
+
+                            report.push(format!("{} items {}: {}", count, label, reason));
+                        }
+                        state.show_status = status!("{}", report.join("\n"));
                     }
                 }
 

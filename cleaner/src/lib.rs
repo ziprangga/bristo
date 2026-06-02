@@ -16,7 +16,7 @@ use rayon::prelude::*;
 use simple_status::{Emitter, status_emit};
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TrashStatus {
     Failed,
     Skipped,
@@ -26,11 +26,24 @@ pub enum TrashStatus {
 pub struct TrashEntry {
     status: TrashStatus,
     entry: FileEntry,
+    reason: Option<String>,
 }
 
 impl TrashEntry {
+    pub fn new(status: TrashStatus, entry: FileEntry, reason: Option<String>) -> Self {
+        Self {
+            status: status,
+            entry,
+            reason: reason,
+        }
+    }
+
     pub fn status(&self) -> TrashStatus {
         self.status
+    }
+
+    pub fn reason(&self) -> Option<&str> {
+        self.reason.as_deref()
     }
 
     pub fn entry(&self) -> &FileEntry {
@@ -39,6 +52,22 @@ impl TrashEntry {
 
     pub fn into_entry(self) -> FileEntry {
         self.entry
+    }
+
+    pub fn failed(entry: FileEntry, reason: String) -> Self {
+        Self {
+            status: TrashStatus::Failed,
+            entry,
+            reason: Some(reason),
+        }
+    }
+
+    pub fn skipped(entry: FileEntry, reason: String) -> Self {
+        Self {
+            status: TrashStatus::Skipped,
+            entry,
+            reason: Some(reason),
+        }
     }
 }
 
@@ -216,7 +245,7 @@ impl Cleaner {
     }
 
     /// Move all associated files including the app itself to trash
-    pub fn trash_all_seq(&self) -> Result<Vec<TrashEntry>> {
+    pub fn trash_all_entry(&self) -> Result<Vec<TrashEntry>> {
         let entries = self.app_profile.all_entries();
 
         let mut asc_paths = Vec::new();
@@ -242,12 +271,9 @@ impl Cleaner {
 
         // trash ASC
         let asc_failed = syscom::trash_files_nsfilemanager(&asc_paths)?;
-        for (failed_path, _) in &asc_failed {
+        for (failed_path, reason) in &asc_failed {
             if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
-                results.push(TrashEntry {
-                    status: TrashStatus::Failed,
-                    entry: entry.clone(),
-                });
+                results.push(TrashEntry::failed(entry.clone(), reason.clone()));
             }
         }
 
@@ -258,32 +284,27 @@ impl Cleaner {
         //             .iter()
         //             .find(|e| e.as_path() == failed_path)
         //         {
-        //             results.push(TrashEntry {
-        //                 status: TrashStatus::Failed,
-        //                 entry: entry.clone(),
-        //             });
+        //             results.push(TrashEntry::failed(entry.clone(), reason.clone()));
         //         }
         //     }
 
         // trash AppPath only when ASC + BTM have no failures
-        if asc_failed.is_empty() {
+        let can_trash_app = asc_failed.is_empty();
+        if can_trash_app {
             let app_failed = syscom::trash_files_nsfilemanager(&app_paths)?;
 
-            for (failed_path, _) in &app_failed {
+            for (failed_path, reason) in &app_failed {
                 if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
-                    results.push(TrashEntry {
-                        status: TrashStatus::Failed,
-                        entry: entry.clone(),
-                    });
+                    results.push(TrashEntry::failed(entry.clone(), reason.clone()));
                 }
             }
         } else {
             for entry in &entries {
                 if matches!(entry, FileEntry::AppPath(_)) {
-                    results.push(TrashEntry {
-                        status: TrashStatus::Skipped,
-                        entry: entry.clone(),
-                    });
+                    results.push(TrashEntry::skipped(
+                        entry.clone(),
+                        "because some associated files failed to move".to_string(),
+                    ));
                 }
             }
         }
