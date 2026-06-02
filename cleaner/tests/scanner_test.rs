@@ -2,10 +2,11 @@ use std::fs::{self, File};
 use std::io::Write;
 use std::path::PathBuf;
 
-use cleaner::AppProcess;
+use cleaner;
+use simple_status::Emitter;
 
 #[test]
-fn test_appinfo_from_temp_path() -> anyhow::Result<()> {
+fn test_app_metadata_from_temp_path() -> anyhow::Result<()> {
     // Create temporary app folder
     let base_dir = std::env::temp_dir();
     let app_path = base_dir.join("test.app");
@@ -30,9 +31,12 @@ fn test_appinfo_from_temp_path() -> anyhow::Result<()> {
 "#;
     plist_file.write_all(plist_content.as_bytes())?;
 
-    // Now call your AppInfo function
-    let app_info = cleaner::AppInfo::from_path(&app_path.to_path_buf())?;
-    assert_eq!(app_info.as_bundle_id(), "com.example.test");
+    // Now call your AppMetadata function
+    let app_profile = cleaner::AppProfile::from_path(&app_path.to_path_buf())?;
+    assert_eq!(
+        app_profile.as_app_metadata().as_info().as_bundle_id(),
+        "com.example.test"
+    );
 
     // Optional: clean up
     let _ = fs::remove_dir_all(&app_path);
@@ -64,11 +68,14 @@ fn test_running_processes_mock() -> anyhow::Result<()> {
 "#;
     plist_file.write_all(plist_content.as_bytes())?;
 
-    // Create AppInfo instance
-    let app_info = cleaner::AppInfo::from_path(&app_path.to_path_buf())?;
+    // Create AppProfile instance
+    let app_profile = cleaner::AppProfile::from_path(&app_path.to_path_buf())?;
 
+    let mut cleaner = cleaner::Cleaner::new(app_profile);
+
+    let status: Option<&Emitter> = None;
     // Call find_app_processess; since nothing is really running, we just check it doesn't panic
-    let _processes = AppProcess::find_app_processes(&app_info);
+    let _processes = cleaner.find_app_process(status);
     // assert!(processes.is_empty());
 
     // Optional cleanup
@@ -82,24 +89,28 @@ fn test_running_processes_mock() -> anyhow::Result<()> {
 #[test]
 #[ignore]
 fn test_kill_processes_safe() -> anyhow::Result<()> {
+    // let cleaner = cleaner::Cleaner::default();
     // Use a dummy .app path
     let app_path: PathBuf = PathBuf::from("/Applications/NonExistent.app");
-    let app_info = cleaner::AppInfo::new(
-        app_path,
+    let info_plist = cleaner::InfoPlist::new(
         "NonExistent.app".to_string(),
         "com.example.test".to_string(),
         "NonExistent".to_string(),
         "example".to_string(),
     );
-    // let app_info = cleaner::AppInfo {
-    //     path: app_path,
-    //     name: "NonExistent.app".to_string(),
-    //     bundle_id: "com.example.test".to_string(),
-    //     bundle_executable_name: "NonExistent".to_string(),
-    //     organization: "example".to_string(),
-    // };
-    let processes = AppProcess::find_app_processes(&app_info);
-    AppProcess::kill_app_processes(app_info.as_name(), &processes)?; // Safe: no processes exist
+    let app_metadata = cleaner::AppMetadata::new(app_path, info_plist);
+    let app_profile = cleaner::AppProfile::new(
+        app_metadata,
+        cleaner::AppProcs::default(),
+        cleaner::AppLogReceipt::default(),
+        cleaner::AppAscFiles::default(),
+    );
+
+    let status: Option<&Emitter> = None;
+
+    let mut cleaner = cleaner::Cleaner::new(app_profile);
+    cleaner.find_app_process(status)?;
+    cleaner.kill_app_process(status)?; // Safe: no processes exist
     Ok(())
 }
 

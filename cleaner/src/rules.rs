@@ -1,7 +1,7 @@
 use std::path::Path;
 use unicode_normalization::UnicodeNormalization;
 
-pub enum Rules {
+enum Rules {
     Equal,
     Contain,
 }

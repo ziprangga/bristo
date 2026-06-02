@@ -1,82 +1,89 @@
-use crate::app_data::app_info::AppInfo;
+mod asc_data;
+pub use asc_data::AscData;
+
+use crate::app_profile::app_metadata::AppMetadata;
 use crate::locations_scan::{LocationsScan, SandboxContainerLocation};
 use crate::rules::MatchRules;
 
 use anyhow::Result;
 use rayon::prelude::*;
 use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use walkdir::WalkDir;
 
 #[derive(Debug, Default, Clone)]
-pub struct AssociateFiles {
-    associate_files: Vec<(PathBuf, String)>,
+pub struct AppAscFiles {
+    asc_files: Vec<AscData>,
 }
 
-impl AssociateFiles {
-    // Add and replace existing path from list of paths
-    // convenient way where some of paths not moved when all path exist try to move
-    // like move to trash
-    pub fn replace(&mut self, files: Vec<(PathBuf, String)>) {
-        self.associate_files = files;
+impl AppAscFiles {
+    /// Contruct AscFiles
+    pub fn new(asc_files: &[AscData]) -> Self {
+        Self {
+            asc_files: asc_files.to_vec(),
+        }
+    }
+    //// reference of associate files
+    pub fn as_asc_files(&self) -> &[AscData] {
+        &self.asc_files
     }
 
-    //// reference of associate files
-    pub fn as_associate_files(&self) -> &Vec<(PathBuf, String)> {
-        &self.associate_files
+    /// Update associate_files with given list
+    pub fn set_asc_files(&mut self, asc_data: Vec<AscData>) {
+        self.asc_files = asc_data;
     }
 
     // Scan all file associate from list of location
     // for huge directory and try using walkdir + rayon
     // use in_progress as emitter status to caller
-    pub fn scan_associate_files<F>(
+    pub fn scan_asc_files<F>(
         &mut self,
-        app_info: &AppInfo,
+        app_metadata: &AppMetadata,
         locations: &LocationsScan,
         in_progress: F,
     ) where
         F: Fn(usize, &Path) + Send + Sync,
     {
-        let results = self.find_and_add_associate_files(app_info, locations, in_progress);
+        let results = self.find_and_add_asc_files(app_metadata, locations, in_progress);
 
         // remove child path if the parent in the list
         // so it not mess with the list when move to trash
         let mut sorted = results;
-        sorted.sort_by_key(|(p, _)| p.components().count());
+        sorted.sort_by_key(|file| file.as_path().components().count());
 
-        let mut filtered: Vec<(PathBuf, String)> = Vec::new();
+        let mut filtered: Vec<AscData> = Vec::new();
 
-        'parent_filter: for (path, name) in sorted {
-            for (existing_path, _) in &filtered {
-                if path.starts_with(existing_path) {
+        'parent_filter: for file in sorted {
+            for existing_file in &filtered {
+                if file.as_path().starts_with(existing_file.as_path()) {
                     continue 'parent_filter;
                 }
             }
-            filtered.push((path, name));
+            filtered.push(file);
         }
 
         // from sandbox location
         let mut merged = filtered;
 
-        let container_matches = self.find_container_dirs(app_info);
+        let container_matches = self.find_container_dirs(app_metadata);
         merged.extend(container_matches);
 
         // Deduplicate once after merge
         let mut seen_unique = HashSet::new();
-        merged.retain(|(p, _)| seen_unique.insert(p.clone()));
+        merged.retain(|file| seen_unique.insert(file.as_path().to_path_buf()));
 
-        // Build the indexed list including the app itself
-        self.set_all_associate_file(app_info, merged);
+        // Build the indexed list
+        self.set_asc_files(merged);
     }
 
-    fn find_and_add_associate_files<F>(
+    fn find_and_add_asc_files<F>(
         &self,
-        app_info: &AppInfo,
+        app_metadata: &AppMetadata,
         locations: &LocationsScan,
         in_progress: F,
-    ) -> Vec<(PathBuf, String)>
+    ) -> Vec<AscData>
     where
         F: Fn(usize, &Path) + Send + Sync,
     {
@@ -84,8 +91,8 @@ impl AssociateFiles {
         let progress = Arc::new(in_progress);
 
         // Parallel
-        let results: Vec<(PathBuf, String)> = locations
-            .paths
+        let results: Vec<AscData> = locations
+            .as_paths()
             .par_iter()
             .filter(|base| base.exists())
             .flat_map_iter(|base| {
@@ -93,19 +100,18 @@ impl AssociateFiles {
                     .max_depth(3)
                     .into_iter()
                     .filter_map(Result::ok)
-                    // .filter(|entry| entry.file_type().is_file() || entry.file_type().is_dir())
                     .flat_map(|entry| {
                         let path_buf = entry.path().to_path_buf();
                         let mut matches = Vec::new();
                         let rules = MatchRules::new()
-                            .equal(app_info.as_name())
-                            .equal(app_info.as_bundle_executable_name())
-                            .equal(app_info.as_organization())
-                            .contain(app_info.as_bundle_id())
+                            .equal(app_metadata.as_info().as_name())
+                            .equal(app_metadata.as_info().as_bundle_executable_name())
+                            .equal(app_metadata.as_info().as_organization())
+                            .contain(app_metadata.as_info().as_bundle_id())
                             .check(&path_buf);
 
                         if rules {
-                            matches.push((
+                            matches.push(AscData::new(
                                 path_buf.clone(),
                                 path_buf.file_name().unwrap().to_string_lossy().to_string(),
                             ));
@@ -128,12 +134,12 @@ impl AssociateFiles {
 
     // Special sandbox container scanner for app that using uuid folder name
     // or for app that install from app store
-    fn find_container_dirs(&self, app_info: &AppInfo) -> Vec<(PathBuf, String)> {
+    fn find_container_dirs(&self, app_metadata: &AppMetadata) -> Vec<AscData> {
         let containers_dir = SandboxContainerLocation::new();
         let patterns = containers_dir.sandbox_pattern();
 
         let results = containers_dir
-            .paths
+            .as_paths()
             .par_iter()
             .filter(|base| base.exists())
             .flat_map_iter(|base| {
@@ -157,7 +163,7 @@ impl AssociateFiles {
                                 .find_map(|entry| {
                                     let file_path = entry.path();
                                     let rules = MatchRules::new()
-                                        .contain(app_info.as_bundle_id())
+                                        .contain(app_metadata.as_info().as_bundle_id())
                                         .check(&file_path);
 
                                     if rules {
@@ -166,14 +172,15 @@ impl AssociateFiles {
                                             .map(|n| n.to_string_lossy().to_string())
                                             .unwrap_or_default();
 
-                                        let display_name = if folder_name == app_info.as_bundle_id()
+                                        let display_name = if folder_name
+                                            == app_metadata.as_info().as_bundle_id()
                                         {
                                             folder_name
                                         } else {
-                                            app_info.as_name().to_string()
+                                            app_metadata.as_info().as_name().to_string()
                                         };
 
-                                        Some((path.clone(), display_name))
+                                        Some(AscData::new(path.clone(), display_name))
                                     } else {
                                         None
                                     }
@@ -185,16 +192,5 @@ impl AssociateFiles {
             .collect();
 
         results
-    }
-
-    /// Update associate_files with given list and include app itself
-    fn set_all_associate_file(&mut self, app_info: &AppInfo, files: Vec<(PathBuf, String)>) {
-        // Start with enumerated files
-        let mut path_asc: Vec<(PathBuf, String)> = files.into_iter().collect();
-
-        // Append the app itself
-        path_asc.push((app_info.as_path().clone(), app_info.as_name().to_string()));
-
-        self.associate_files = path_asc;
     }
 }

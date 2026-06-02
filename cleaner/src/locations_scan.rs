@@ -6,7 +6,7 @@ use crate::syscom::{DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR};
 
 #[derive(Debug, Clone)]
 pub struct LocationsScan {
-    pub paths: Vec<PathBuf>,
+    paths: Vec<PathBuf>,
 }
 
 impl LocationsScan {
@@ -67,6 +67,10 @@ impl LocationsScan {
         Self { paths }
     }
 
+    pub fn as_paths(&self) -> &Vec<PathBuf> {
+        &self.paths
+    }
+
     /// Return only receipts directories
     pub fn receipts_dirs(&self) -> Vec<PathBuf> {
         self.paths
@@ -85,7 +89,7 @@ impl Default for LocationsScan {
 
 #[derive(Debug, Clone)]
 pub struct SandboxContainerLocation {
-    pub paths: Vec<PathBuf>,
+    paths: Vec<PathBuf>,
 }
 
 impl SandboxContainerLocation {
@@ -98,6 +102,10 @@ impl SandboxContainerLocation {
         paths.push(home.join("Library/Containers"));
 
         Self { paths }
+    }
+
+    pub fn as_paths(&self) -> &Vec<PathBuf> {
+        &self.paths
     }
 
     // Pattern to check the container directory
