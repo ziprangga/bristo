@@ -197,7 +197,6 @@ impl Cleaner {
     pub fn replace_remaining_entries(&mut self, entries: Vec<TrashEntry>) {
         let file_entries: Vec<FileEntry> =
             entries.into_iter().map(TrashEntry::into_entry).collect();
-        // let file_entries: Vec<FileEntry> = entries.into_iter().map(|e| e.into_entry()).collect();
 
         self.app_profile.replace_file_entries(file_entries);
     }
@@ -249,7 +248,6 @@ impl Cleaner {
         let entries = self.app_profile.all_entries();
 
         let mut asc_paths = Vec::new();
-        // let mut btm_paths = Vec::new();
         let mut app_paths = Vec::new();
 
         for entry in &entries {
@@ -258,9 +256,6 @@ impl Cleaner {
                     asc_paths.push(entry.as_path().to_path_buf());
                 }
 
-                // FileEntry::BtmFiles(_) => {
-                //     btm_paths.push(entry.as_path().to_path_buf());
-                // }
                 FileEntry::AppPath(_) => {
                     app_paths.push(entry.as_path().to_path_buf());
                 }
@@ -277,18 +272,7 @@ impl Cleaner {
             }
         }
 
-        // trash BTM
-        // let btm_failed = syscom::trash_files_nsfilemanager(&btm_paths)?;
-        // for (failed_path, _) in &btm_failed {
-        //         if let Some(entry) = entries
-        //             .iter()
-        //             .find(|e| e.as_path() == failed_path)
-        //         {
-        //             results.push(TrashEntry::failed(entry.clone(), reason.clone()));
-        //         }
-        //     }
-
-        // trash AppPath only when ASC + BTM have no failures
+        // trash AppPath only when other have no failures
         let can_trash_app = asc_failed.is_empty();
         if can_trash_app {
             let app_failed = syscom::trash_files_nsfilemanager(&app_paths)?;
@@ -341,7 +325,7 @@ impl Cleaner {
             println!("{}", log.display());
         }
 
-        println!("\nAssociated files:");
+        println!("\nAll associated files:");
         for (_i, entry) in self.all_entries_enumerate() {
             println!("{} -> {}", entry.as_name(), entry.as_path().display());
         }

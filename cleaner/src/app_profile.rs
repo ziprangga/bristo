@@ -17,7 +17,6 @@ use std::path::Path;
 pub enum FileEntry {
     AppPath(AppMetadata),
     AscFiles(AscData),
-    // BtmFiles(AppBtmFiles),
 }
 
 impl FileEntry {
@@ -25,7 +24,6 @@ impl FileEntry {
         match self {
             Self::AppPath(v) => v.as_path(),
             Self::AscFiles(v) => v.as_path(),
-            // Self::BtmFiles(v) => v.as_path(),
         }
     }
 
@@ -33,7 +31,6 @@ impl FileEntry {
         match self {
             Self::AppPath(v) => v.as_info().as_name(),
             Self::AscFiles(v) => v.as_name(),
-            // Self::BtmFiles(v) => v.as_name(),
         }
     }
 }
@@ -92,7 +89,6 @@ impl AppProfile {
     pub fn replace_file_entries(&mut self, entries: Vec<FileEntry>) {
         let mut app_metadata = None;
         let mut asc_files = Vec::new();
-        // let mut btm_files = Vec::new();
 
         for entry in entries {
             match entry {
@@ -102,11 +98,7 @@ impl AppProfile {
 
                 FileEntry::AscFiles(file) => {
                     asc_files.push(file);
-                } //
-                  //
-                  // FileEntry::BtmFiles(file) => {
-                  //     btm_files.push(file);
-                  // }
+                }
             }
         }
 
@@ -115,7 +107,6 @@ impl AppProfile {
         }
 
         self.app_asc_files.set_asc_files(asc_files);
-        // self.app_btm_files.set_btm_files(btm_files);
     }
 
     pub fn find_pid_and_command(&mut self) {
@@ -147,8 +138,7 @@ impl AppProfile {
             .scan_asc_files(&self.app_metadata, locations, in_progress);
     }
 
-    // ===============All Associate file with enumerate==================
-
+    // merged all entry
     pub fn all_entries(&self) -> Vec<FileEntry> {
         let mut entries = Vec::new();
 
@@ -160,15 +150,6 @@ impl AppProfile {
                 .cloned()
                 .map(FileEntry::AscFiles),
         );
-
-        // BtmFile
-        // entries.extend(
-        //     self.app_btm_files
-        //         .as_btm_files()
-        //         .iter()
-        //         .cloned()
-        //         .map(FileEntry::Btm),
-        // );
 
         // AppPath
         entries.push(FileEntry::AppPath(self.app_metadata.clone()));
