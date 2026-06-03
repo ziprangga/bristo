@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use crate::app_profile::app_metadata::AppMetadata;
-use crate::locations_scan::LocationsScan;
+use crate::locations_scan::ScanLocations;
 use crate::rules::MatchRules;
 
 #[derive(Debug, Default, Clone)]
@@ -17,7 +17,7 @@ impl AppLogReceipt {
         }
     }
     /// Find BOM files for the given app
-    pub fn find_bom_files(&mut self, app_metadata: &AppMetadata, locations: &LocationsScan) {
+    pub fn find_bom_files(&mut self, app_metadata: &AppMetadata, locations: &ScanLocations) {
         self.bom_file.clear();
         for dir in locations.receipts_dirs() {
             if let Ok(entries) = std::fs::read_dir(&dir) {

@@ -27,7 +27,7 @@ impl AppMetadata {
             let found = WalkDir::new(app_path)
                 .into_iter()
                 .par_bridge()
-                .filter_map(Result::ok)
+                .filter_map(|e| e.ok())
                 .filter(|entry| entry.file_type().is_file() && entry.file_name() == "Info.plist")
                 .collect::<Vec<_>>();
 

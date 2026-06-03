@@ -11,7 +11,7 @@ pub use app_metadata::{AppMetadata, InfoPlist};
 pub use app_proc::{AppProcs, Proc};
 
 use crate::locations_scan::BtmLocations;
-use crate::locations_scan::LocationsScan;
+use crate::locations_scan::ScanLocations;
 use anyhow::Result;
 use mini_logger::debug;
 use std::path::Path;
@@ -143,14 +143,14 @@ impl AppProfile {
         }
     }
 
-    pub fn find_log_bom(&mut self, locations: &LocationsScan) {
+    pub fn find_log_bom(&mut self, locations: &ScanLocations) {
         self.app_log_receipt
             .find_bom_files(&self.app_metadata, locations);
     }
 
     // Scan all file associate from list of location
     // use in_progress as emitter status to caller
-    pub fn find_associate_files<F>(&mut self, locations: &LocationsScan, in_progress: F)
+    pub fn find_associate_files<F>(&mut self, locations: &ScanLocations, in_progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync,
     {

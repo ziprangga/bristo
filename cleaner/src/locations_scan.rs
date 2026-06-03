@@ -5,11 +5,11 @@ use crate::syscom::sysconf_path;
 use crate::syscom::{DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR};
 
 #[derive(Debug, Clone)]
-pub struct LocationsScan {
+pub struct ScanLocations {
     paths: Vec<PathBuf>,
 }
 
-impl LocationsScan {
+impl ScanLocations {
     /// Build a default list of app-related locations
     pub fn new() -> Self {
         let mut paths = Vec::new();
@@ -81,18 +81,18 @@ impl LocationsScan {
     }
 }
 
-impl Default for LocationsScan {
+impl Default for ScanLocations {
     fn default() -> Self {
         Self::new()
     }
 }
 
 #[derive(Debug, Clone)]
-pub struct SandboxContainerLocation {
+pub struct SandboxLocations {
     paths: Vec<PathBuf>,
 }
 
-impl SandboxContainerLocation {
+impl SandboxLocations {
     pub fn new() -> Self {
         let mut paths = Vec::new();
         let home = env::var("HOME")
@@ -116,7 +116,7 @@ impl SandboxContainerLocation {
     }
 }
 
-impl Default for SandboxContainerLocation {
+impl Default for SandboxLocations {
     fn default() -> Self {
         Self::new()
     }
@@ -146,16 +146,6 @@ impl BtmLocations {
             legacy_dir,
             privileged_dir,
         }
-    }
-
-    // Returns a clone of legacy directories
-    pub fn as_legacy_dir(&self) -> &Vec<PathBuf> {
-        &self.legacy_dir
-    }
-
-    // Returns a clone of privileged directories
-    pub fn as_privileged_dir(&self) -> &Vec<PathBuf> {
-        &self.privileged_dir
     }
 
     pub fn all_paths(&self) -> Vec<PathBuf> {

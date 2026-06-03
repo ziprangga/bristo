@@ -1,6 +1,7 @@
 mod app_profile;
 mod locations_scan;
 mod rules;
+mod scanner;
 mod syscom;
 pub use app_profile::AppLogReceipt;
 pub use app_profile::{AppAscFiles, AscData};
@@ -8,7 +9,7 @@ pub use app_profile::{AppBtmFiles, BtmData};
 pub use app_profile::{AppMetadata, InfoPlist};
 pub use app_profile::{AppProcs, Proc};
 pub use app_profile::{AppProfile, FileEntry};
-pub use locations_scan::{BtmLocations, LocationsScan, SandboxContainerLocation};
+pub use locations_scan::{BtmLocations, SandboxLocations, ScanLocations};
 pub use rules::MatchRules;
 
 use anyhow::{Context, Result};
@@ -157,7 +158,7 @@ impl Cleaner {
             message: "Finding BOM logs...",
         );
 
-        let locations = LocationsScan::new();
+        let locations = ScanLocations::new();
 
         let btm_locations = BtmLocations::new();
 
