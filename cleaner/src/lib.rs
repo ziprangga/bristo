@@ -4,10 +4,11 @@ mod rules;
 mod syscom;
 pub use app_profile::AppLogReceipt;
 pub use app_profile::{AppAscFiles, AscData};
+pub use app_profile::{AppBtmFiles, BtmData};
 pub use app_profile::{AppMetadata, InfoPlist};
 pub use app_profile::{AppProcs, Proc};
 pub use app_profile::{AppProfile, FileEntry};
-pub use locations_scan::{LocationsScan, SandboxContainerLocation};
+pub use locations_scan::{BtmLocations, LocationsScan, SandboxContainerLocation};
 pub use rules::MatchRules;
 
 use anyhow::{Context, Result};
@@ -158,6 +159,8 @@ impl Cleaner {
 
         let locations = LocationsScan::new();
 
+        let btm_locations = BtmLocations::new();
+
         self.app_profile.find_log_bom(&locations);
 
         let total_bom_file = self.app_profile.as_app_log_receipt().count();
@@ -177,6 +180,21 @@ impl Cleaner {
 
         self.app_profile
             .find_associate_files(&locations, |cur, _path| {
+                status_emit!(
+                    status,
+                    stage: "Searching",
+                    current: cur,
+                );
+            });
+
+        status_emit!(
+            status,
+            stage: "Started",
+            message: "Finding btm files...",
+        );
+
+        self.app_profile
+            .find_btm_files(&btm_locations, |cur, _path| {
                 status_emit!(
                     status,
                     stage: "Searching",
@@ -248,12 +266,17 @@ impl Cleaner {
         let entries = self.app_profile.all_entries();
 
         let mut asc_paths = Vec::new();
+        let mut btm_paths = Vec::new();
         let mut app_paths = Vec::new();
 
         for entry in &entries {
             match entry {
                 FileEntry::AscFiles(_) => {
                     asc_paths.push(entry.as_path().to_path_buf());
+                }
+
+                FileEntry::BtmFiles(_) => {
+                    btm_paths.push(entry.as_path().to_path_buf());
                 }
 
                 FileEntry::AppPath(_) => {
@@ -272,8 +295,16 @@ impl Cleaner {
             }
         }
 
+        // trash ASC
+        let btm_failed = syscom::trash_files_nsfilemanager(&btm_paths)?;
+        for (failed_path, reason) in &asc_failed {
+            if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
+                results.push(TrashEntry::failed(entry.clone(), reason.clone()));
+            }
+        }
+
         // trash AppPath only when other have no failures
-        let can_trash_app = asc_failed.is_empty();
+        let can_trash_app = asc_failed.is_empty() && btm_failed.is_empty();
         if can_trash_app {
             let app_failed = syscom::trash_files_nsfilemanager(&app_paths)?;
 

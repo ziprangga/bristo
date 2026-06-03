@@ -104,6 +104,7 @@ fn test_kill_processes_safe() -> anyhow::Result<()> {
         cleaner::AppProcs::default(),
         cleaner::AppLogReceipt::default(),
         cleaner::AppAscFiles::default(),
+        cleaner::AppBtmFiles::default(),
     );
 
     let status: Option<&Emitter> = None;

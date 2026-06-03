@@ -122,64 +122,53 @@ impl Default for SandboxContainerLocation {
     }
 }
 
-// #[derive(Debug, Clone)]
-// pub struct BtmLocation {
-//     legacy_dir: Vec<PathBuf>,
-//     embed_dir: Vec<PathBuf>,
-//     privileged_dir: Vec<PathBuf>,
-// }
+#[derive(Debug, Clone)]
+pub struct BtmLocations {
+    legacy_dir: Vec<PathBuf>,
+    privileged_dir: Vec<PathBuf>,
+}
 
-// impl BtmLocation {
-//     pub fn new() -> Self {
-//         let home = env::var("HOME")
-//             .map(PathBuf::from)
-//             .unwrap_or_else(|_| PathBuf::from("/Users/Unknown"));
+impl BtmLocations {
+    pub fn new() -> Self {
+        let home = env::var("HOME")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| PathBuf::from("/Users/Unknown"));
 
-//         let mut legacy_dir = Vec::new();
-//         legacy_dir.push(PathBuf::from("/Library/LaunchAgents"));
-//         legacy_dir.push(PathBuf::from("/Library/LaunchDaemons"));
-//         legacy_dir.push(home.join("Library/LaunchAgents"));
+        let mut legacy_dir = Vec::new();
+        legacy_dir.push(PathBuf::from("/Library/LaunchAgents"));
+        legacy_dir.push(PathBuf::from("/Library/LaunchDaemons"));
+        legacy_dir.push(home.join("Library/LaunchAgents"));
 
-//         let mut embed_dir = Vec::new();
-//         embed_dir.push(PathBuf::from("Contents/Library/LaunchAgents"));
-//         embed_dir.push(PathBuf::from("Contents/Library/LaunchDaemons"));
+        let mut privileged_dir = Vec::new();
+        privileged_dir.push(PathBuf::from("/Library/PrivilegedHelperTools"));
 
-//         let mut privileged_dir = Vec::new();
-//         privileged_dir.push(PathBuf::from("/Library/PrivilegedHelperTools"));
+        Self {
+            legacy_dir,
+            privileged_dir,
+        }
+    }
 
-//         Self {
-//             legacy_dir,
-//             embed_dir,
-//             privileged_dir,
-//         }
-//     }
+    // Returns a clone of legacy directories
+    pub fn as_legacy_dir(&self) -> &Vec<PathBuf> {
+        &self.legacy_dir
+    }
 
-//     // Returns a clone of legacy directories
-//     pub fn legacy_dir(&self) -> Vec<PathBuf> {
-//         self.legacy_dir.clone()
-//     }
+    // Returns a clone of privileged directories
+    pub fn as_privileged_dir(&self) -> &Vec<PathBuf> {
+        &self.privileged_dir
+    }
 
-//     // Returns a clone of privileged directories
-//     pub fn privileged_dir(&self) -> Vec<PathBuf> {
-//         self.privileged_dir.clone()
-//     }
+    pub fn all_paths(&self) -> Vec<PathBuf> {
+        self.legacy_dir
+            .iter()
+            .chain(self.privileged_dir.iter())
+            .cloned()
+            .collect()
+    }
+}
 
-//     // Returns a clone of the raw, relative embed directories
-//     pub fn embed_dir(&self) -> Vec<PathBuf> {
-//         self.embed_dir.clone()
-//     }
-
-//     // Combines the internal relative embed directories with an external app path
-//     pub fn embed_dir_with_app_path(&self, app_path: &PathBuf) -> Vec<PathBuf> {
-//         self.embed_dir
-//             .iter()
-//             .map(|relative_path| app_path.join(relative_path))
-//             .collect()
-//     }
-// }
-
-// impl Default for BtmLocation {
-//     fn default() -> Self {
-//         Self::new()
-//     }
-// }
+impl Default for BtmLocations {
+    fn default() -> Self {
+        Self::new()
+    }
+}
