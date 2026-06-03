@@ -26,12 +26,12 @@ impl AppBtmFiles {
         }
     }
 
-    //// reference of associate files
+    //// reference of btm files
     pub fn as_btm_files(&self) -> &[BtmData] {
         &self.btm_files
     }
 
-    /// Update associate_files with given list
+    /// Update btm files with given list
     pub fn set_btm_files(&mut self, btm_data: Vec<BtmData>) {
         self.btm_files = btm_data;
     }
@@ -61,12 +61,6 @@ impl AppBtmFiles {
             }
             filtered.push(file);
         }
-
-        // // from sandbox location
-        // let mut merged = filtered;
-
-        // let container_matches = self.find_container_dirs(app_metadata);
-        // merged.extend(container_matches);
 
         // Deduplicate once after merge
         let mut seen_unique = HashSet::new();
