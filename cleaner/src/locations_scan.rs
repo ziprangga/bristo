@@ -125,6 +125,7 @@ impl Default for SandboxLocations {
 #[derive(Debug, Clone)]
 pub struct BtmLocations {
     legacy_dir: Vec<PathBuf>,
+    preference_dir: Vec<PathBuf>,
     privileged_dir: Vec<PathBuf>,
 }
 
@@ -139,11 +140,18 @@ impl BtmLocations {
         legacy_dir.push(PathBuf::from("/Library/LaunchDaemons"));
         legacy_dir.push(home.join("Library/LaunchAgents"));
 
+        let mut preference_dir = Vec::new();
+        preference_dir.push(PathBuf::from("/Library/PreferencePanes"));
+        preference_dir.push(PathBuf::from("/Library/Preferences"));
+        preference_dir.push(home.join("Library/PreferencePanes"));
+        preference_dir.push(home.join("Library/Preferences"));
+
         let mut privileged_dir = Vec::new();
         privileged_dir.push(PathBuf::from("/Library/PrivilegedHelperTools"));
 
         Self {
             legacy_dir,
+            preference_dir,
             privileged_dir,
         }
     }
@@ -152,6 +160,7 @@ impl BtmLocations {
         self.legacy_dir
             .iter()
             .chain(self.privileged_dir.iter())
+            .chain(self.preference_dir.iter())
             .cloned()
             .collect()
     }

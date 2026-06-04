@@ -12,6 +12,7 @@ pub use app_proc::{AppProcs, Proc};
 
 use crate::locations_scan::BtmLocations;
 use crate::locations_scan::ScanLocations;
+use crate::scanner::construct_scanner_result;
 use anyhow::Result;
 use mini_logger::debug;
 use std::path::Path;
@@ -193,7 +194,7 @@ impl AppProfile {
         // AppPath
         entries.push(FileEntry::AppPath(self.app_metadata.clone()));
 
-        entries
+        construct_scanner_result(entries, None, |entry| entry.as_path())
     }
 
     pub fn reset(&mut self) {
