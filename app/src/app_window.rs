@@ -1,5 +1,6 @@
 use iced::widget::Column;
 use iced::widget::Stack;
+use iced::widget::text::Wrapping;
 use iced::{
     Background, Border, Color, Padding, alignment,
     widget::{Container, Row, Text, container, row, text},
@@ -58,11 +59,11 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                     CustomButton::new(label.clone())
                         .text_size(12)
                         .text_align_x(alignment::Horizontal::Left)
+                        .text_wrapping(Wrapping::WordOrGlyph)
                         .width(Length::Fill)
                         .on_press(AppMessage::OpenSelectedPath(i))
                         .style(style)
                         .view(),
-                    // Text::new(path.to_string_lossy().to_string())
                     Text::new(display_path.clone())
                         .size(12)
                         .color(Color::from_rgb8(3, 161, 252))
@@ -90,6 +91,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             )
             .into()
     }))];
+
     let list_view = ListView::new(items)
         .headers(headers)
         .row_selected(state.selected_file)
