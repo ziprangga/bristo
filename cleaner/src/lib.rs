@@ -296,9 +296,9 @@ impl Cleaner {
             }
         }
 
-        // trash ASC
+        // trash BTM
         let btm_failed = syscom::trash_files_nsfilemanager(&btm_paths)?;
-        for (failed_path, reason) in &asc_failed {
+        for (failed_path, reason) in &btm_failed {
             if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
                 results.push(TrashEntry::failed(entry.clone(), reason.clone()));
             }

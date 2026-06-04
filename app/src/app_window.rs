@@ -237,7 +237,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .text_align_x(alignment::Horizontal::Center)
             .text_align_y(alignment::Vertical::Center)
             .width(Length::Fill)
-            .on_press(AppMessage::TrashApp)
+            .on_press(AppMessage::MoveToTrash)
             .style(danger_style)
             .view(),
     )

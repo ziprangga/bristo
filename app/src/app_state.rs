@@ -24,8 +24,8 @@ pub enum AppMessage {
     OutputFile(Result<Arc<PathBuf>, String>),
     ExportFile,
 
-    TrashApp,
-    DeletedApp(Result<Vec<TrashEntry>, String>),
+    MoveToTrash,
+    UpdateEntryFiles(Result<Vec<TrashEntry>, String>),
     ClearList,
     ShowStatus(Status),
 

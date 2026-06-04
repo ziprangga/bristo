@@ -70,4 +70,9 @@ impl AppMetadata {
     pub fn as_info(&self) -> &InfoPlist {
         &self.info
     }
+
+    /// Update path app
+    pub fn set_app_path(&mut self, path: PathBuf) {
+        self.path = path;
+    }
 }

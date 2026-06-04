@@ -239,15 +239,15 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             })
         }
 
-        AppMessage::TrashApp => {
+        AppMessage::MoveToTrash => {
             let cleaner = state.cleaner.clone();
             Task::perform(trash_app_async(cleaner), |res| match res {
-                Ok(remaining_entry) => AppMessage::DeletedApp(Ok(remaining_entry)),
-                Err(err) => AppMessage::DeletedApp(Err(err.to_string())),
+                Ok(remaining_entry) => AppMessage::UpdateEntryFiles(Ok(remaining_entry)),
+                Err(err) => AppMessage::UpdateEntryFiles(Err(err.to_string())),
             })
         }
 
-        AppMessage::DeletedApp(result) => {
+        AppMessage::UpdateEntryFiles(result) => {
             match result {
                 Ok(remaining_entries) => {
                     if remaining_entries.is_empty() {
