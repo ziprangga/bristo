@@ -7,6 +7,7 @@ use iced::{
 use iced::{Element, Length};
 
 use crate::app_state::{AppMessage, AppState};
+// use crate::app_tree_view::TreeView;
 use widget::button_style::{
     CustomButton, blank_border_style, blank_btn_style, custom_btn_rounded_style, danger_style,
 };
@@ -27,6 +28,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .view();
 
     let entries = state.cleaner.all_entries_enumerate();
+    // let tree_views = TreeView::from_enumerated_entries(state.cleaner.all_entries_enumerate());
 
     let has_real_items = entries
         .iter()
