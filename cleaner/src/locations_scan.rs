@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use crate::syscom::sysconf_path;
 use crate::syscom::{DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct ScanLocations {
     paths: Vec<PathBuf>,
 }
@@ -70,24 +70,26 @@ impl ScanLocations {
     pub fn as_paths(&self) -> &Vec<PathBuf> {
         &self.paths
     }
+}
 
-    /// Return only receipts directories
-    pub fn receipts_dirs(&self) -> Vec<PathBuf> {
-        self.paths
-            .iter()
-            .filter(|p| p.ends_with("receipts") || p == &&PathBuf::from("/private/var/db/receipts"))
-            .cloned()
-            .collect()
+#[derive(Debug, Default, Clone)]
+pub struct ReceiptsLocations {
+    paths: Vec<PathBuf>,
+}
+
+impl ReceiptsLocations {
+    pub fn new() -> Self {
+        Self {
+            paths: vec![PathBuf::from("/private/var/db/receipts")],
+        }
+    }
+
+    pub fn as_paths(&self) -> &[PathBuf] {
+        &self.paths
     }
 }
 
-impl Default for ScanLocations {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct SandboxLocations {
     paths: Vec<PathBuf>,
 }
@@ -116,13 +118,7 @@ impl SandboxLocations {
     }
 }
 
-impl Default for SandboxLocations {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct BtmLocations {
     legacy_dir: Vec<PathBuf>,
     preference_dir: Vec<PathBuf>,
@@ -163,11 +159,5 @@ impl BtmLocations {
             .chain(self.preference_dir.iter())
             .cloned()
             .collect()
-    }
-}
-
-impl Default for BtmLocations {
-    fn default() -> Self {
-        Self::new()
     }
 }

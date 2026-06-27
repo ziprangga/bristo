@@ -8,7 +8,7 @@ use cleaner::Cleaner;
 use cleaner::TrashEntry;
 use simple_status::Emitter;
 
-pub async fn set_input_path() -> Result<Arc<PathBuf>> {
+pub async fn set_input_path() -> Result<PathBuf> {
     let file = AsyncFileDialog::new()
         .set_title("Browse App")
         .add_filter("Application", &["app"])
@@ -16,17 +16,17 @@ pub async fn set_input_path() -> Result<Arc<PathBuf>> {
         .await
         .ok_or_else(|| anyhow!("No application selected"))?;
 
-    Ok(Arc::new(file.path().to_path_buf()))
+    Ok(file.path().to_path_buf())
 }
 
-pub async fn set_output_path() -> Result<Arc<PathBuf>> {
+pub async fn set_output_path() -> Result<PathBuf> {
     let folder = AsyncFileDialog::new()
         .set_title("Select Output Folder")
         .pick_folder()
         .await
         .ok_or_else(|| anyhow!("No folder selected"))?;
 
-    Ok(Arc::new(folder.path().to_path_buf()))
+    Ok(folder.path().to_path_buf())
 }
 
 pub async fn add_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {

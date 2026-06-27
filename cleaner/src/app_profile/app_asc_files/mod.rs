@@ -57,10 +57,12 @@ impl AppAscFiles {
                     .check(path)
             },
             |path_buf: PathBuf| {
-                vec![AscData::new(
-                    path_buf.clone(),
-                    path_buf.file_name().unwrap().to_string_lossy().to_string(),
-                )]
+                let name = path_buf
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                AscData::new(path_buf, name)
             },
         );
 

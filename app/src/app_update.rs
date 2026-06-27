@@ -14,17 +14,16 @@ use iced::{Event, Subscription, Task, futures::StreamExt, window};
 use mini_logger::debug;
 use simple_status::status;
 use std::collections::HashMap;
-use std::path::Path;
 use std::sync::Arc;
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
         AppMessage::DropFile(path) => {
             state.reset();
-            state.input_file = path.clone();
+            state.app_path = path.clone();
             let add_app = {
                 let channel = state.channel.clone();
-                let input_file = state.input_file.clone();
+                let input_file = state.app_path.clone();
                 Task::perform(
                     async move {
                         let emitter = channel.get_emitter();
@@ -51,7 +50,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             Task::batch(vec![add_app, status_task])
         }
 
-        AppMessage::InputFile => {
+        AppMessage::AppPath => {
             state.reset();
 
             Task::perform(set_input_path(), |res| match res {
@@ -198,46 +197,33 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             Task::none()
         }
 
-        AppMessage::BrowseOutput => Task::perform(set_output_path(), |res| match res {
-            Ok(path) => AppMessage::OutputFile(Ok(path)),
+        AppMessage::ExportBomFilesLoc => Task::perform(set_output_path(), |res| match res {
+            Ok(path) => AppMessage::ExportBomFiles(Ok(path)),
             Err(e) => {
                 let event = status!("{}", e.to_string());
                 AppMessage::ShowStatus(event)
             }
         }),
 
-        AppMessage::OutputFile(result) => {
-            match result {
-                Ok(path) => {
-                    state.output_file = (*path).clone();
-                    state.show_status = status!("folder selected");
-                }
-                Err(e) => {
-                    state.show_status = status!("{}", e);
-                }
+        AppMessage::ExportBomFiles(result) => match result {
+            Ok(path) => {
+                let cleaner = state.cleaner.clone();
+                Task::perform(save_bom_logs_async(cleaner, path), |res| match res {
+                    Ok(()) => {
+                        let event = status!("Bom file saved");
+                        AppMessage::ShowStatus(event)
+                    }
+                    Err(err) => {
+                        let event = status!("{}", err.to_string());
+                        AppMessage::ShowStatus(event)
+                    }
+                })
             }
-            Task::none()
-        }
-
-        AppMessage::ExportFile => {
-            let output_dir = if !state.output_file.as_os_str().is_empty() {
-                state.output_file.clone()
-            } else {
-                let home = std::env::var("HOME").unwrap();
-                Path::new(&home).join("Desktop")
-            };
-            let cleaner = state.cleaner.clone();
-            Task::perform(save_bom_logs_async(cleaner, output_dir), |res| match res {
-                Ok(()) => {
-                    let event = status!("Bom file saved");
-                    AppMessage::ShowStatus(event)
-                }
-                Err(err) => {
-                    let event = status!("{}", err.to_string());
-                    AppMessage::ShowStatus(event)
-                }
-            })
-        }
+            Err(e) => {
+                let event = status!("{}", e);
+                Task::done(AppMessage::ShowStatus(event))
+            }
+        },
 
         AppMessage::MoveToTrash => {
             let cleaner = state.cleaner.clone();

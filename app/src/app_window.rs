@@ -2,8 +2,8 @@ use iced::widget::Column;
 use iced::widget::Stack;
 use iced::widget::text::Wrapping;
 use iced::{
-    Background, Border, Color, Padding, alignment,
-    widget::{Container, Row, Text, container, row, text},
+    Border, Color, Padding, alignment,
+    widget::{Container, Row, Space, Text, container, row, text},
 };
 use iced::{Element, Length};
 
@@ -23,7 +23,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .height(Length::Fixed(200.0))
             .width(Length::Fixed(200.0))
             .style(blank_border_style)
-            .on_press(AppMessage::InputFile)
+            .on_press(AppMessage::AppPath)
             .view()
     })
     .view();
@@ -120,79 +120,20 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         list_view
     };
 
-    let output_display = if !state.output_file.as_os_str().is_empty() {
-        &state.output_file.display().to_string()
-    } else {
-        &"Save Bom log file ( Default to Desktop )".to_string()
-    };
-
-    let button_path = if !state.input_file.as_os_str().is_empty() {
-        Container::new(
-            CustomButton::new(output_display)
-                .text_align_x(alignment::Horizontal::Left)
-                .text_align_y(alignment::Vertical::Center)
-                .width(Length::Fill)
-                .style(blank_btn_style)
-                .on_press(AppMessage::BrowseOutput)
-                .view(),
-        )
-        .style(|_| container::Style {
-            background: Some(Background::Color(Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 0.06,
-            })),
-            border: Border {
-                color: Color {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 0.06,
-                },
-                width: 0.3,
-                radius: 5.0.into(),
-            },
-            ..Default::default()
-        })
-    } else {
-        Container::new(
-            CustomButton::new(output_display)
-                .text_align_x(alignment::Horizontal::Left)
-                .text_align_y(alignment::Vertical::Center)
-                .width(Length::Fill)
-                .style(blank_btn_style)
-                .view(),
-        )
-        .style(|_| container::Style {
-            background: Some(Background::Color(Color {
-                r: 1.0,
-                g: 1.0,
-                b: 1.0,
-                a: 0.06,
-            })),
-            border: Border {
-                color: Color {
-                    r: 1.0,
-                    g: 1.0,
-                    b: 1.0,
-                    a: 0.06,
-                },
-                width: 0.3,
-                radius: 5.0.into(),
-            },
-            ..Default::default()
-        })
-    };
-
-    let button_export = if !state.input_file.as_os_str().is_empty() {
+    let button_export_bom_files = if !state.app_path.as_os_str().is_empty()
+        && !state
+            .cleaner
+            .as_app_profile()
+            .as_app_log_receipt()
+            .is_empty()
+    {
         Container::new(
             CustomButton::new("Export Bom Logs")
                 .text_align_x(alignment::Horizontal::Left)
                 .text_align_y(alignment::Vertical::Center)
                 .width(Length::Shrink)
                 .style(custom_btn_rounded_style)
-                .on_press(AppMessage::ExportFile)
+                .on_press(AppMessage::ExportBomFilesLoc)
                 .view(),
         )
     } else {
@@ -205,10 +146,6 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 .view(),
         )
     };
-
-    let bom_output = Container::new(row![button_path, button_export].spacing(5))
-        .padding([3, 20])
-        .align_y(alignment::Vertical::Center);
 
     let button_clear_list = Container::new(
         CustomButton::new("Clear list")
@@ -219,9 +156,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .on_press(AppMessage::ClearList)
             .view(),
     )
-    .width(Length::Shrink)
-    .padding([3, 20])
-    .align_y(alignment::Vertical::Center);
+    .width(Length::Shrink);
 
     let status_msg = Container::new(
         text(state.show_status.to_string())
@@ -258,9 +193,13 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     // ====================main layout========================
     let top = Container::new(
         Row::new()
-            .push(bom_output)
+            .push(button_export_bom_files)
+            .push(Space::new().width(Length::Fill))
             .push(button_clear_list)
             .width(Length::Fill)
+            .spacing(5)
+            .padding([3, 20])
+            .align_y(alignment::Vertical::Center)
             .height(Length::Shrink),
     );
 

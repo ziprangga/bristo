@@ -1,6 +1,5 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use std::sync::Arc;
 
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
@@ -10,7 +9,7 @@ use simple_status::{ChannelKind, Channels, Status, init_channels};
 #[derive(Debug, Clone)]
 pub enum AppMessage {
     DropFile(PathBuf),
-    InputFile,
+    AppPath,
     ScanApp(Result<Cleaner, String>),
 
     ModalAsk(ModalAskMessage),
@@ -20,9 +19,8 @@ pub enum AppMessage {
     UpdateCleaner(Cleaner),
     OpenSelectedPath(usize),
 
-    BrowseOutput,
-    OutputFile(Result<Arc<PathBuf>, String>),
-    ExportFile,
+    ExportBomFilesLoc,
+    ExportBomFiles(Result<PathBuf, String>),
 
     MoveToTrash,
     UpdateEntryFiles(Result<Vec<TrashEntry>, String>),
@@ -34,8 +32,7 @@ pub enum AppMessage {
 
 #[derive(Clone)]
 pub struct AppState {
-    pub input_file: PathBuf,
-    pub output_file: PathBuf,
+    pub app_path: PathBuf,
     pub show_status: Status,
     pub channel: Channels,
 
@@ -47,8 +44,7 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(buffer: usize) -> Self {
-        let input_file = PathBuf::new();
-        let output_file = PathBuf::new();
+        let app_path = PathBuf::new();
         let show_status = Status::default();
         let channel = init_channels(buffer, ChannelKind::Broadcast);
 
@@ -59,8 +55,7 @@ impl AppState {
         let pending_cleaner = None;
 
         Self {
-            input_file,
-            output_file,
+            app_path,
             show_status,
             channel,
             cleaner,
@@ -71,10 +66,10 @@ impl AppState {
     }
 
     pub fn reset(&mut self) {
-        self.input_file.clear();
-        self.output_file.clear();
+        self.app_path.clear();
         self.cleaner.reset();
         self.selected_file = None;
         self.show_status.reset_event();
+        self.pending_cleaner = None;
     }
 }

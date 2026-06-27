@@ -98,7 +98,7 @@ where
     T: Send,
     FProgress: Fn(usize, &Path) + Send + Sync,
     FMatch: Fn(&Path) -> bool + Send + Sync,
-    FBuild: Fn(PathBuf) -> Vec<T> + Send + Sync,
+    FBuild: Fn(PathBuf) -> T + Send + Sync,
 {
     let counter = Arc::new(AtomicUsize::new(0));
     let progress = Arc::new(in_progress);
@@ -120,9 +120,9 @@ where
                     }
 
                     if is_match(&path_buf) {
-                        build(path_buf).into_iter()
+                        Some(build(path_buf))
                     } else {
-                        Vec::new().into_iter()
+                        None
                     }
                 })
                 .collect::<Vec<_>>()

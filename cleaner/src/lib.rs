@@ -9,7 +9,7 @@ pub use app_profile::{AppBtmFiles, BtmData};
 pub use app_profile::{AppMetadata, InfoPlist};
 pub use app_profile::{AppProcs, Proc};
 pub use app_profile::{AppProfile, FileEntry};
-pub use locations_scan::{BtmLocations, SandboxLocations, ScanLocations};
+pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
 pub use rules::MatchRules;
 
 use anyhow::{Context, Result};
@@ -162,7 +162,22 @@ impl Cleaner {
 
         let btm_locations = BtmLocations::new();
 
-        self.app_profile.find_log_bom(&locations);
+        let receipts_locations = ReceiptsLocations::new();
+
+        status_emit!(
+            status,
+            stage: "Started",
+            message: "Finding BOM files...",
+        );
+
+        self.app_profile
+            .find_log_bom(&receipts_locations, |cur, _path| {
+                status_emit!(
+                    status,
+                    stage: "Searching",
+                    current: cur,
+                );
+            });
 
         let total_bom_file = self.app_profile.as_app_log_receipt().count();
 
@@ -237,15 +252,19 @@ impl Cleaner {
         let results: Vec<Result<()>> = self
             .app_profile
             .as_app_log_receipt()
-            .as_bom_file()
+            .as_bom_files()
             .par_iter()
             .map(|bom_file| {
-                let output_file = bom_file
-                    .file_name()
-                    .map(|n| app_log_folder.join(n).with_extension("log"))
-                    .context("BOM file has no filename")?;
+                // let output_file = bom_file
+                //     .file_name()
+                //     .map(|n| app_log_folder.join(n).with_extension("log"))
+                //     .context("BOM file has no filename")?;
+                let output_file = app_log_folder
+                    .join(bom_file.as_name())
+                    .with_extension("log");
+                syscom::run_lsbom_command(bom_file.as_path(), &output_file)
 
-                syscom::run_lsbom_command(bom_file, &output_file)
+                // syscom::run_lsbom_command(bom_file, &output_file)
             })
             .collect();
 
@@ -353,8 +372,8 @@ impl Cleaner {
         }
 
         println!("\nLog BOM files:");
-        for log in self.app_profile.as_app_log_receipt().as_bom_file() {
-            println!("{}", log.display());
+        for log in self.app_profile.as_app_log_receipt().as_bom_files() {
+            println!("{}", log.as_path().display());
         }
 
         println!("\nAll associated files:");

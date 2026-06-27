@@ -13,6 +13,14 @@ pub struct AppProcs {
 }
 
 impl AppProcs {
+    pub fn list(&self) -> &[Proc] {
+        &self.processes
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.processes.is_empty()
+    }
+
     // Scan process running for app
     pub fn find_app_processes(app_metadata: &AppMetadata) -> Self {
         let mut sys = System::new();
@@ -65,13 +73,5 @@ impl AppProcs {
             .collect();
 
         Self { processes }
-    }
-
-    pub fn list(&self) -> &[Proc] {
-        &self.processes
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.processes.is_empty()
     }
 }

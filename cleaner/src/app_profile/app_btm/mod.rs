@@ -54,10 +54,12 @@ impl AppBtmFiles {
                     .check(path)
             },
             |path_buf: PathBuf| {
-                vec![BtmData::new(
-                    path_buf.clone(),
-                    path_buf.file_name().unwrap().to_string_lossy().to_string(),
-                )]
+                let name = path_buf
+                    .file_name()
+                    .map(|n| n.to_string_lossy().to_string())
+                    .unwrap_or_default();
+
+                BtmData::new(path_buf, name)
             },
         );
 
