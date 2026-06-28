@@ -10,8 +10,6 @@ type DropStyleFn = dyn Fn(&Theme) -> container::Style;
 
 pub struct DropZone<M> {
     content: Element<'static, M>,
-    on_drop: Option<Box<dyn Fn(std::path::PathBuf) -> M + 'static>>,
-    on_hover: Option<M>,
     width: Length,
     height: Option<Length>,
     align_x: alignment::Horizontal,
@@ -24,8 +22,6 @@ impl<M: Clone + 'static> DropZone<M> {
     pub fn new(content: impl Into<Element<'static, M>>) -> Self {
         Self {
             content: content.into(),
-            on_drop: None,
-            on_hover: None,
             width: Length::Fill,
             height: Some(Length::Fill),
             align_x: alignment::Horizontal::Center,
@@ -37,19 +33,6 @@ impl<M: Clone + 'static> DropZone<M> {
 
     pub fn content(mut self, content: impl Into<Element<'static, M>>) -> Self {
         self.content = content.into();
-        self
-    }
-
-    pub fn on_drop<F>(mut self, f: F) -> Self
-    where
-        F: Fn(std::path::PathBuf) -> M + 'static,
-    {
-        self.on_drop = Some(Box::new(f));
-        self
-    }
-
-    pub fn on_hover(mut self, msg: M) -> Self {
-        self.on_hover = Some(msg);
         self
     }
 
