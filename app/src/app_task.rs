@@ -29,7 +29,7 @@ pub async fn set_output_path() -> Result<PathBuf> {
     Ok(folder.path().to_path_buf())
 }
 
-pub async fn add_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
+pub async fn process_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
     tokio::task::spawn_blocking(move || Cleaner::new_profile(&path, status.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Add application failed: {}", e))?

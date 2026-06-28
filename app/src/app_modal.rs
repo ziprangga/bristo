@@ -53,20 +53,20 @@ impl ModalAsk {
             .align_y(alignment::Vertical::Center);
 
         // Yes button
-        let yes_btn = CustomButton::new("Yes")
+        let yes_btn = CustomButton::text("Yes")
             .text_size(12)
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(true))
             .style(danger_style)
-            .view();
+            .build();
 
         // No button
-        let no_btn = CustomButton::new("No")
+        let no_btn = CustomButton::text("No")
             .text_size(12)
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(false))
             .style(blank_border_style)
-            .view();
+            .build();
 
         // buttons row
         let buttons_row = Row::new().spacing(10).push(yes_btn).push(no_btn);

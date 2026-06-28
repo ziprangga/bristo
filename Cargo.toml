@@ -5,7 +5,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "0.1.7"
+version = "0.1.8"
 authors = ["ziprangga"]
 license = "MIT or Apache-2.0"
 
@@ -37,8 +37,9 @@ iced = { git = "https://github.com/ziprangga/iced.git", features = [
 
 # =======System=======
 objc2 = "0.6"
-objc2-foundation = "0.3"
-objc2-app-kit = "0.3"
+objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSURL", "NSArray", "NSString", "NSError"] }
+objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSImage", "NSBitmapImageRep", "objc2-uniform-type-identifiers"] }
+objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
 libc = "0.2"
 
 

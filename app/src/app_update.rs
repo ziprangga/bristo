@@ -2,12 +2,13 @@ use crate::app_modal::ModalAskMessage;
 use crate::app_state::{AppMessage, AppState};
 use crate::app_task::find_app_process_async;
 use crate::app_task::kill_app_process_async;
+use crate::app_task::open_loc_async;
+use crate::app_task::process_app;
 use crate::app_task::save_bom_logs_async;
 use crate::app_task::scan_app_async;
 use crate::app_task::set_input_path;
 use crate::app_task::set_output_path;
 use crate::app_task::trash_app_async;
-use crate::app_task::{add_app, open_loc_async};
 
 use cleaner::TrashStatus;
 use iced::{Event, Subscription, Task, futures::StreamExt, window};
@@ -18,16 +19,31 @@ use std::sync::Arc;
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
     match message {
-        AppMessage::DropFile(path) => {
+        AppMessage::DropApp(app_path) => {
             state.reset();
-            state.app_path = path.clone();
+            Task::done(AppMessage::ProcessApp(app_path.to_path_buf()))
+        }
+
+        AppMessage::AppPath => {
+            state.reset();
+            Task::perform(set_input_path(), |res| match res {
+                Ok(path) => AppMessage::ProcessApp(path.to_path_buf()),
+                Err(e) => {
+                    let event = status!("{}", e.to_string());
+                    AppMessage::ShowStatus(event)
+                }
+            })
+        }
+
+        AppMessage::ProcessApp(app_path) => {
+            state.app_path = app_path.clone();
             let add_app = {
                 let channel = state.channel.clone();
-                let input_file = state.app_path.clone();
+                let path_input = state.app_path.clone();
                 Task::perform(
                     async move {
                         let emitter = channel.get_emitter();
-                        let result = add_app(input_file, emitter).await;
+                        let result = process_app(path_input, emitter).await;
                         match result {
                             Ok(cleaner) => AppMessage::FindProcs(Ok(cleaner)),
                             Err(err) => {
@@ -48,18 +64,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 .unwrap_or_else(Task::none);
 
             Task::batch(vec![add_app, status_task])
-        }
-
-        AppMessage::AppPath => {
-            state.reset();
-
-            Task::perform(set_input_path(), |res| match res {
-                Ok(path) => AppMessage::DropFile(path.to_path_buf()),
-                Err(e) => {
-                    let event = status!("{}", e.to_string());
-                    AppMessage::ShowStatus(event)
-                }
-            })
         }
 
         AppMessage::FindProcs(result) => {
@@ -315,7 +319,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
 pub fn subscription(_state: &AppState) -> Subscription<AppMessage> {
     iced::event::listen().map(|event| match event {
-        Event::Window(window::Event::FileDropped(path)) => AppMessage::DropFile(path),
+        Event::Window(window::Event::FileDropped(path)) => AppMessage::DropApp(path),
         _ => AppMessage::NoOperations,
     })
 }

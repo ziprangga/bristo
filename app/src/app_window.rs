@@ -16,17 +16,17 @@ use widget::drop_file::DropFile;
 use widget::list_view::{HeaderContent, HeaderWidget, ListView, RowContent, WidgetContent};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
-    let drop_zone: Element<AppMessage> = DropFile::widget(|| {
-        CustomButton::new("Drag & Drop App here or click to browse")
+    let drop_zone: Element<AppMessage> = DropFile::new(
+        CustomButton::text("Drag & Drop App here or click to browse")
             .text_size(20)
             .text_color(Color::TRANSPARENT)
             .height(Length::Fixed(200.0))
             .width(Length::Fixed(200.0))
             .style(blank_border_style)
             .on_press(AppMessage::AppPath)
-            .view()
-    })
-    .view();
+            .build(),
+    )
+    .build();
 
     let entries = state.cleaner.all_entries_enumerate();
     // let tree_views = TreeView::from_enumerated_entries(state.cleaner.all_entries_enumerate());
@@ -56,18 +56,15 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             RowContent::Widget(WidgetContent::new(move |_selected| {
                 let style = blank_btn_style;
                 row![
-                    CustomButton::new(label.clone())
+                    CustomButton::text(label.clone())
                         .text_size(12)
                         .text_align_x(alignment::Horizontal::Left)
                         .text_wrapping(Wrapping::WordOrGlyph)
                         .width(Length::Fill)
                         .on_press(AppMessage::OpenSelectedPath(i))
                         .style(style)
-                        .view(),
-                    Text::new(display_path.clone())
-                        .size(12)
-                        .color(Color::from_rgb8(3, 161, 252))
-                        .width(Length::Fill)
+                        .build(),
+                    Text::new(display_path.clone()).size(12).width(Length::Fill)
                 ]
                 .into()
             }))
@@ -128,33 +125,33 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .is_empty()
     {
         Container::new(
-            CustomButton::new("Export Bom Logs")
+            CustomButton::text("Export Bom Logs")
                 .text_align_x(alignment::Horizontal::Left)
                 .text_align_y(alignment::Vertical::Center)
                 .width(Length::Shrink)
                 .style(custom_btn_rounded_style)
                 .on_press(AppMessage::ExportBomFilesLoc)
-                .view(),
+                .build(),
         )
     } else {
         Container::new(
-            CustomButton::new("Export Bom Logs")
+            CustomButton::text("Export Bom Logs")
                 .text_align_x(alignment::Horizontal::Left)
                 .text_align_y(alignment::Vertical::Center)
                 .width(Length::Shrink)
                 .style(custom_btn_rounded_style)
-                .view(),
+                .build(),
         )
     };
 
     let button_clear_list = Container::new(
-        CustomButton::new("Clear list")
+        CustomButton::text("Clear list")
             .text_align_y(alignment::Vertical::Center)
             .text_align_x(alignment::Horizontal::Center)
             .width(Length::Fill)
             .style(blank_border_style)
             .on_press(AppMessage::ClearList)
-            .view(),
+            .build(),
     )
     .width(Length::Shrink);
 
@@ -172,13 +169,13 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .align_y(alignment::Vertical::Center);
 
     let button_delete = Container::new(
-        CustomButton::new("Move to Trash")
+        CustomButton::text("Move to Trash")
             .text_align_x(alignment::Horizontal::Center)
             .text_align_y(alignment::Vertical::Center)
             .width(Length::Fill)
             .on_press(AppMessage::MoveToTrash)
             .style(danger_style)
-            .view(),
+            .build(),
     )
     .width(Length::Shrink)
     .align_x(alignment::Horizontal::Center)

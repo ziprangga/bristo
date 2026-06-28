@@ -8,8 +8,9 @@ use simple_status::{ChannelKind, Channels, Status, init_channels};
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
-    DropFile(PathBuf),
+    DropApp(PathBuf),
     AppPath,
+    ProcessApp(PathBuf),
     ScanApp(Result<Cleaner, String>),
 
     ModalAsk(ModalAskMessage),
