@@ -256,16 +256,10 @@ impl Cleaner {
             .as_bom_files()
             .par_iter()
             .map(|bom_file| {
-                // let output_file = bom_file
-                //     .file_name()
-                //     .map(|n| app_log_folder.join(n).with_extension("log"))
-                //     .context("BOM file has no filename")?;
                 let output_file = app_log_folder
                     .join(bom_file.as_name())
                     .with_extension("log");
                 syscom::run_lsbom_command(bom_file.as_path(), &output_file)
-
-                // syscom::run_lsbom_command(bom_file, &output_file)
             })
             .collect();
 
@@ -392,59 +386,14 @@ impl Cleaner {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct RawIcon {
-    width: usize,
-    height: usize,
-    rgba_bytes: Vec<u8>,
-}
-
-impl RawIcon {
-    pub fn new(width: usize, height: usize, rgba_bytes: Vec<u8>) -> Self {
-        Self {
-            width,
-            height,
-            rgba_bytes,
-        }
-    }
-
-    pub fn width(&self) -> usize {
-        self.width
-    }
-
-    pub fn height(&self) -> usize {
-        self.height
-    }
-
-    pub fn rgba_bytes(&self) -> &[u8] {
-        &self.rgba_bytes
-    }
-
-    pub fn into_rgba_bytes(self) -> Vec<u8> {
-        self.rgba_bytes
-    }
-
-    pub fn rgb_bytes(&self) -> Vec<u8> {
-        let mut rgb = Vec::with_capacity(self.width * self.height * 3);
-        // Chunk through data 4 bytes at a time (R, G, B, A)
-        for chunk in self.rgba_bytes.chunks_exact(4) {
-            rgb.push(chunk[0]); // R
-            rgb.push(chunk[1]); // G
-            rgb.push(chunk[2]); // B
-            // chunk[3] (Alpha) is intentionally skipped
-        }
-        rgb
-    }
-}
-
 // Asset from Mac for UI
 #[derive(Debug, Clone)]
 pub struct IconCache {
-    icon_cache: HashMap<String, RawIcon>,
+    icon_cache: HashMap<String, (usize, usize, Vec<u8>)>,
 }
 
 impl IconCache {
-    pub fn new(path: &Path, target_size: f64) -> Self {
+    pub fn new(path: &Path, target_size: f64) -> Option<Self> {
         let path_str = path.to_str().unwrap_or("");
 
         // 1. Determine the appropriate cache key dynamically
@@ -460,19 +409,62 @@ impl IconCache {
         };
 
         // Generate and load the owned icon data instantly
-        let icon = Self::load_icon_for_key(&cache_key, target_size)
-            .unwrap_or_else(Self::safe_fallback_rgba_bytes);
+        let icon = Self::load_icon_for_key(&cache_key, target_size)?;
 
         // Initialize the HashMap and insert the resolved icon
         let mut map = HashMap::new();
         map.insert(cache_key, icon);
 
         // Wrap the map in Self and return it
-        Self { icon_cache: map }
+        Some(Self { icon_cache: map })
     }
 
-    pub fn icon_cache_owned(self) -> HashMap<String, RawIcon> {
+    pub fn icon_cache_owned(self) -> HashMap<String, (usize, usize, Vec<u8>)> {
         self.icon_cache
+    }
+
+    // Get width for a specific file path icon
+    pub fn width(&self, path: &Path) -> Option<usize> {
+        let key = Self::get_cache_key(path);
+        self.icon_cache.get(&key).map(|(w, _, _)| *w)
+    }
+
+    // Get height for a specific file path icon
+    pub fn height(&self, path: &Path) -> Option<usize> {
+        let key = Self::get_cache_key(path);
+        self.icon_cache.get(&key).map(|(_, h, _)| *h)
+    }
+
+    // Get an immutable reference to the raw RGBA slice
+    pub fn rgba_bytes(&self, path: &Path) -> Option<&[u8]> {
+        let key = Self::get_cache_key(path);
+        self.icon_cache
+            .get(&key)
+            .map(|(_, _, bytes)| bytes.as_slice())
+    }
+
+    // Consume the cache and extract a specific icon's raw vector allocation
+    pub fn into_rgba_bytes(mut self, path: &Path) -> Option<Vec<u8>> {
+        let key = Self::get_cache_key(path);
+        self.icon_cache.remove(&key).map(|(_, _, bytes)| bytes)
+    }
+
+    // Build an RGB vector on the fly from the stored RGBA tuple data
+    pub fn rgb_bytes(&self, path: &Path) -> Option<Vec<u8>> {
+        let key = Self::get_cache_key(path);
+        let (width, height, rgba_bytes) = self.icon_cache.get(&key)?;
+
+        let mut rgb = Vec::with_capacity(width * height * 3);
+
+        // Chunk through data 4 bytes at a time (R, G, B, A)
+        for chunk in rgba_bytes.chunks_exact(4) {
+            rgb.push(chunk[0]); // R
+            rgb.push(chunk[1]); // G
+            rgb.push(chunk[2]); // B
+            // chunk[3] (Alpha) is intentionally skipped
+        }
+
+        Some(rgb)
     }
 
     pub fn get_cache_key(path: &Path) -> String {
@@ -490,7 +482,7 @@ impl IconCache {
         }
     }
 
-    fn load_icon_for_key(key: &str, target_size: f64) -> Option<RawIcon> {
+    fn load_icon_for_key(key: &str, target_size: f64) -> Option<(usize, usize, Vec<u8>)> {
         let ns_image = if key.ends_with(".app") {
             syscom::get_installed_app_icon_by_path(key)
         } else if key == "__system_folder__" {
@@ -500,10 +492,6 @@ impl IconCache {
         };
 
         let (width, height, bytes) = syscom::ns_image_to_rgba_bytes(&ns_image, target_size)?;
-        Some(RawIcon::new(width, height, bytes))
-    }
-
-    fn safe_fallback_rgba_bytes() -> RawIcon {
-        RawIcon::new(1, 1, vec![0, 0, 0, 0])
+        Some((width, height, bytes))
     }
 }

@@ -84,9 +84,13 @@ pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<TrashEntry>> {
 }
 
 pub async fn get_icon_asset_async(path: PathBuf, target_size: f64) -> anyhow::Result<IconCache> {
-    let cache = tokio::task::spawn_blocking(move || IconCache::new(&path, target_size))
+    let path_for_error = path.clone();
+    let cache_option = tokio::task::spawn_blocking(move || IconCache::new(&path, target_size))
         .await
         .map_err(|e| anyhow::anyhow!("get asset icon failed: {}", e))?;
+
+    let cache = cache_option
+        .ok_or_else(|| anyhow::anyhow!("Failed to load icon for path: {:?}", path_for_error))?;
 
     Ok(cache)
 }

@@ -29,5 +29,3 @@ pub fn run_lsbom_command(bom_file: &Path, output_file: &Path) -> Result<()> {
         )
     }
 }
-
-// ===================================================

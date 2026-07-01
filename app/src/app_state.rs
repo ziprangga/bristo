@@ -90,24 +90,21 @@ impl AppState {
         self.pending_cleaner = None;
     }
 
-    pub fn get_cached_icon(&self, path: &Path) -> image::Handle {
+    pub fn get_cached_icon(&self, path: &Path) -> Option<image::Handle> {
         // Call the backend source of truth directly! No more double code.
         let cache_key = IconCache::get_cache_key(path);
 
-        self.icon_cache
-            .get(&cache_key)
-            .cloned()
-            .unwrap_or_else(Self::safe_fallback_handle)
+        self.icon_cache.get(&cache_key).cloned()
     }
 
     pub fn consume_backend_icon(&mut self, backend: IconCache) {
         // By using a for-loop over the map directly, we take ownership of its elements
-        for (key, raw_icon) in backend.icon_cache_owned() {
+        for (key, (width, height, rgba_bytes)) in backend.icon_cache_owned() {
             // Convert the raw pixel vector into Iced's GPU-ready Handle format
             let ui_handle = image::Handle::from_rgba(
-                raw_icon.width() as u32,
-                raw_icon.height() as u32,
-                raw_icon.into_rgba_bytes(), // Consumes the inner Vec<u8> directly
+                width as u32,
+                height as u32,
+                rgba_bytes, // Consumes the inner Vec<u8> directly
             );
 
             // Store it in your AppState frontend cache
@@ -115,9 +112,5 @@ impl AppState {
         }
         // At this point, the `backend` variable goes out of scope and is completely dropped,
         // freeing up all backend memory buffers instantly.
-    }
-
-    pub fn safe_fallback_handle() -> image::Handle {
-        image::Handle::from_rgba(1, 1, vec![0, 0, 0, 0])
     }
 }

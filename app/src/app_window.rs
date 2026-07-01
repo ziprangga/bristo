@@ -62,11 +62,15 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             };
 
             // ===================
-            let icon_handle = state.get_cached_icon(&path);
 
-            let icon_element = iced::widget::image(icon_handle)
-                .width(iced::Length::Fixed(16.0))
-                .height(iced::Length::Fixed(16.0));
+            let icon_element: iced::Element<_> = match state.get_cached_icon(&path) {
+                Some(icon_handle) => iced::widget::image(icon_handle)
+                    .width(iced::Length::Fixed(16.0))
+                    .height(iced::Length::Fixed(16.0))
+                    .into(),
+                None => iced::widget::Space::new().width(16.0).into(),
+            };
+
             // ===============
             ContentCell::new()
                 .cell(Cell::new(
