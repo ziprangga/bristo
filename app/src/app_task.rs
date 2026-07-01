@@ -4,8 +4,8 @@ use std::sync::Arc;
 use anyhow::{Result, anyhow};
 use rfd::AsyncFileDialog;
 
-use cleaner::Cleaner;
 use cleaner::TrashEntry;
+use cleaner::{Cleaner, IconCache};
 use simple_status::Emitter;
 
 pub async fn set_input_path() -> Result<PathBuf> {
@@ -81,4 +81,12 @@ pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<TrashEntry>> {
     tokio::task::spawn_blocking(move || cleaner.trash_all_entry())
         .await
         .map_err(|e| anyhow::anyhow!("Move to trash failed: {}", e))?
+}
+
+pub async fn get_icon_asset_async(path: PathBuf, target_size: f64) -> anyhow::Result<IconCache> {
+    let cache = tokio::task::spawn_blocking(move || IconCache::new(&path, target_size))
+        .await
+        .map_err(|e| anyhow::anyhow!("get asset icon failed: {}", e))?;
+
+    Ok(cache)
 }

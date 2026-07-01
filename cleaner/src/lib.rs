@@ -16,6 +16,7 @@ use anyhow::{Context, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
 use simple_status::{Emitter, status_emit};
+use std::collections::HashMap;
 use std::path::Path;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -388,5 +389,121 @@ impl Cleaner {
 
     pub fn reset(&mut self) {
         self.app_profile.reset();
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct RawIcon {
+    width: usize,
+    height: usize,
+    rgba_bytes: Vec<u8>,
+}
+
+impl RawIcon {
+    pub fn new(width: usize, height: usize, rgba_bytes: Vec<u8>) -> Self {
+        Self {
+            width,
+            height,
+            rgba_bytes,
+        }
+    }
+
+    pub fn width(&self) -> usize {
+        self.width
+    }
+
+    pub fn height(&self) -> usize {
+        self.height
+    }
+
+    pub fn rgba_bytes(&self) -> &[u8] {
+        &self.rgba_bytes
+    }
+
+    pub fn into_rgba_bytes(self) -> Vec<u8> {
+        self.rgba_bytes
+    }
+
+    pub fn rgb_bytes(&self) -> Vec<u8> {
+        let mut rgb = Vec::with_capacity(self.width * self.height * 3);
+        // Chunk through data 4 bytes at a time (R, G, B, A)
+        for chunk in self.rgba_bytes.chunks_exact(4) {
+            rgb.push(chunk[0]); // R
+            rgb.push(chunk[1]); // G
+            rgb.push(chunk[2]); // B
+            // chunk[3] (Alpha) is intentionally skipped
+        }
+        rgb
+    }
+}
+
+// Asset from Mac for UI
+#[derive(Debug, Clone)]
+pub struct IconCache {
+    icon_cache: HashMap<String, RawIcon>,
+}
+
+impl IconCache {
+    pub fn new(path: &Path, target_size: f64) -> Self {
+        let path_str = path.to_str().unwrap_or("");
+
+        // 1. Determine the appropriate cache key dynamically
+        let cache_key = if path_str.ends_with(".app") {
+            path_str.to_string()
+        } else if path.is_dir() {
+            "__system_folder__".to_string()
+        } else {
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("__system_generic_file__")
+                .to_string()
+        };
+
+        // Generate and load the owned icon data instantly
+        let icon = Self::load_icon_for_key(&cache_key, target_size)
+            .unwrap_or_else(Self::safe_fallback_rgba_bytes);
+
+        // Initialize the HashMap and insert the resolved icon
+        let mut map = HashMap::new();
+        map.insert(cache_key, icon);
+
+        // Wrap the map in Self and return it
+        Self { icon_cache: map }
+    }
+
+    pub fn icon_cache_owned(self) -> HashMap<String, RawIcon> {
+        self.icon_cache
+    }
+
+    pub fn get_cache_key(path: &Path) -> String {
+        let path_str = path.to_str().unwrap_or("");
+
+        if path_str.ends_with(".app") {
+            path_str.to_string()
+        } else if path.is_dir() {
+            "__system_folder__".to_string()
+        } else {
+            path.extension()
+                .and_then(|ext| ext.to_str())
+                .unwrap_or("__system_generic_file__")
+                .to_string()
+        }
+    }
+
+    fn load_icon_for_key(key: &str, target_size: f64) -> Option<RawIcon> {
+        let ns_image = if key.ends_with(".app") {
+            syscom::get_installed_app_icon_by_path(key)
+        } else if key == "__system_folder__" {
+            syscom::get_default_folder_icon()
+        } else {
+            syscom::get_default_file_icon()
+        };
+
+        let (width, height, bytes) = syscom::ns_image_to_rgba_bytes(&ns_image, target_size)?;
+        Some(RawIcon::new(width, height, bytes))
+    }
+
+    fn safe_fallback_rgba_bytes() -> RawIcon {
+        RawIcon::new(1, 1, vec![0, 0, 0, 0])
     }
 }

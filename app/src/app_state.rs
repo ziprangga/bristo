@@ -1,10 +1,19 @@
 use anyhow::Result;
+use std::collections::HashMap;
+use std::path::Path;
 use std::path::PathBuf;
 
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
 use cleaner::TrashEntry;
 use simple_status::{ChannelKind, Channels, Status, init_channels};
+
+// ========
+
+use cleaner::IconCache;
+use iced::widget::image;
+
+// ========
 
 #[derive(Debug, Clone)]
 pub enum AppMessage {
@@ -18,6 +27,7 @@ pub enum AppMessage {
     ConfirmKill(Result<Cleaner, String>),
 
     UpdateCleaner(Cleaner),
+    IconLoaded(IconCache),
     OpenSelectedPath(usize),
 
     ExportBomFilesLoc,
@@ -41,6 +51,8 @@ pub struct AppState {
     pub selected_file: Option<usize>,
     pub show_modal_ask: ModalAsk,
     pub pending_cleaner: Option<Cleaner>,
+
+    pub icon_cache: HashMap<String, image::Handle>,
 }
 
 impl AppState {
@@ -55,6 +67,8 @@ impl AppState {
         let show_modal_ask = ModalAsk::default();
         let pending_cleaner = None;
 
+        let icon_cache = HashMap::new();
+
         Self {
             app_path,
             show_status,
@@ -63,6 +77,8 @@ impl AppState {
             selected_file,
             show_modal_ask,
             pending_cleaner,
+
+            icon_cache,
         }
     }
 
@@ -72,5 +88,36 @@ impl AppState {
         self.selected_file = None;
         self.show_status.reset_event();
         self.pending_cleaner = None;
+    }
+
+    pub fn get_cached_icon(&self, path: &Path) -> image::Handle {
+        // Call the backend source of truth directly! No more double code.
+        let cache_key = IconCache::get_cache_key(path);
+
+        self.icon_cache
+            .get(&cache_key)
+            .cloned()
+            .unwrap_or_else(Self::safe_fallback_handle)
+    }
+
+    pub fn consume_backend_icon(&mut self, backend: IconCache) {
+        // By using a for-loop over the map directly, we take ownership of its elements
+        for (key, raw_icon) in backend.icon_cache_owned() {
+            // Convert the raw pixel vector into Iced's GPU-ready Handle format
+            let ui_handle = image::Handle::from_rgba(
+                raw_icon.width() as u32,
+                raw_icon.height() as u32,
+                raw_icon.into_rgba_bytes(), // Consumes the inner Vec<u8> directly
+            );
+
+            // Store it in your AppState frontend cache
+            self.icon_cache.insert(key, ui_handle);
+        }
+        // At this point, the `backend` variable goes out of scope and is completely dropped,
+        // freeing up all backend memory buffers instantly.
+    }
+
+    pub fn safe_fallback_handle() -> image::Handle {
+        image::Handle::from_rgba(1, 1, vec![0, 0, 0, 0])
     }
 }

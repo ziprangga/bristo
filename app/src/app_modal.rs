@@ -4,7 +4,7 @@ use iced::widget::opaque;
 use iced::widget::{Column, Container, Row, Text, container};
 use iced::{Background, Border, Color, Length, alignment};
 
-use widget::button_style::{CustomButton, blank_border_style, danger_style};
+use widget::button_style::{ButtonStyle, CustomButton};
 
 #[derive(Clone, Default)]
 pub struct ModalAsk {
@@ -52,20 +52,20 @@ impl ModalAsk {
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center);
 
-        // Yes button
-        let yes_btn = CustomButton::text("Yes")
-            .text_size(12)
+        // // Yes button
+        let yes_btn = CustomButton::new()
+            .content_element(iced::widget::text("Yes").size(12))
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(true))
-            .style(danger_style)
+            .style(ButtonStyle::Danger)
             .build();
 
         // No button
-        let no_btn = CustomButton::text("No")
-            .text_size(12)
+        let no_btn = CustomButton::new()
+            .content_element(iced::widget::text("No").size(12))
             .width(Length::Fill)
             .on_press(ModalAskMessage::ConfirmMsg(false))
-            .style(blank_border_style)
+            .style(ButtonStyle::BlankBorder)
             .build();
 
         // buttons row

@@ -37,7 +37,7 @@ iced = { git = "https://github.com/ziprangga/iced.git", features = [
 
 # =======System=======
 objc2 = "0.6"
-objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSURL", "NSArray", "NSString", "NSError"] }
+objc2-foundation = { version = "0.3", features = ["NSFileManager", "NSURL", "NSArray", "NSString", "NSError", "NSData",] }
 objc2-app-kit = { version = "0.3", features = ["NSWorkspace", "NSImage", "NSBitmapImageRep", "objc2-uniform-type-identifiers"] }
 objc2-uniform-type-identifiers = { version = "0.3", features = ["UTType"] }
 libc = "0.2"

@@ -1,6 +1,7 @@
 use crate::app_modal::ModalAskMessage;
 use crate::app_state::{AppMessage, AppState};
 use crate::app_task::find_app_process_async;
+use crate::app_task::get_icon_asset_async;
 use crate::app_task::kill_app_process_async;
 use crate::app_task::open_loc_async;
 use crate::app_task::process_app;
@@ -180,12 +181,41 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::UpdateCleaner(cleaner) => {
             state.cleaner = cleaner;
+
+            let mut tasks = Vec::new();
+
+            for (_i, entry) in state.cleaner.all_entries_enumerate() {
+                // Fix: Use the actual entry path loop item, not 'app_input'
+                let path_buf = entry.as_path().to_path_buf();
+
+                // Build the asynchronous background generator task blueprint
+                let task = Task::perform(get_icon_asset_async(path_buf, 64.0), |res| match res {
+                    // Fix: Send a dedicated IconLoaded message to prevent infinite loops
+                    Ok(backend_cache) => AppMessage::IconLoaded(backend_cache),
+                    Err(err) => {
+                        let event = status!(stage: "Failed", message: err.to_string(),);
+                        AppMessage::ShowStatus(event)
+                    }
+                });
+
+                tasks.push(task);
+            }
+
             let founded = state.cleaner.all_entries_enumerate().len();
             let event = simple_status::status!(
                 stage: "Completed",
                 message: format!("{} items found", founded),
             );
-            Task::done(AppMessage::ShowStatus(event))
+            // Task::done(AppMessage::ShowStatus(event))
+            tasks.push(Task::done(AppMessage::ShowStatus(event)));
+            Task::batch(tasks)
+        }
+
+        AppMessage::IconLoaded(backend_cache) => {
+            // Consumes the backend cache map, loads into state.icon_cache, and drops the backend instantly
+            state.consume_backend_icon(backend_cache);
+
+            Task::none() // No further processing required for this step
         }
 
         AppMessage::OpenSelectedPath(index) => {
