@@ -14,12 +14,11 @@ type CellStyleFn = dyn Fn(CellId, bool, &Theme) -> container::Style;
 pub struct Cell<M> {
     content: Element<'static, M>,
     id: CellId,
-    wrap: bool,
     selected: Option<CellId>,
-    width: Length,
+    width: Option<Length>,
     height: Option<Length>,
-    align_x: alignment::Horizontal,
-    align_y: alignment::Vertical,
+    align_x: Option<alignment::Horizontal>,
+    align_y: Option<alignment::Vertical>,
     padding: Option<Padding>,
     style_fn: Option<Box<CellStyleFn>>,
 }
@@ -29,12 +28,11 @@ impl<M: Clone + 'static> Cell<M> {
         Self {
             content: content.into(),
             id: next_id(),
-            wrap: false,
             selected: None,
-            width: Length::Fill,
-            height: Some(Length::Fill),
-            align_x: alignment::Horizontal::Center,
-            align_y: alignment::Vertical::Center,
+            width: None,
+            height: None,
+            align_x: None,
+            align_y: None,
             padding: None,
             style_fn: None,
         }
@@ -54,11 +52,6 @@ impl<M: Clone + 'static> Cell<M> {
         self.id
     }
 
-    pub fn wrap(mut self, wrap: bool) -> Self {
-        self.wrap = wrap;
-        self
-    }
-
     pub fn selected(mut self, id: Option<CellId>) -> Self {
         self.selected = id;
         self
@@ -69,7 +62,7 @@ impl<M: Clone + 'static> Cell<M> {
     }
 
     pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
+        self.width = Some(width);
         self
     }
 
@@ -79,12 +72,12 @@ impl<M: Clone + 'static> Cell<M> {
     }
 
     pub fn align_x(mut self, x: impl Into<alignment::Horizontal>) -> Self {
-        self.align_x = x.into();
+        self.align_x = Some(x.into());
         self
     }
 
     pub fn align_y(mut self, y: impl Into<alignment::Vertical>) -> Self {
-        self.align_y = y.into();
+        self.align_y = Some(y.into());
         self
     }
 
@@ -102,17 +95,22 @@ impl<M: Clone + 'static> Cell<M> {
     }
 
     pub fn build(self) -> Element<'static, M> {
-        if !self.wrap {
-            return self.content;
-        }
+        let mut container = Container::new(self.content);
 
-        let mut container = Container::new(self.content)
-            .align_x(self.align_x)
-            .align_y(self.align_y)
-            .width(self.width);
+        if let Some(w) = self.width {
+            container = container.width(w);
+        }
 
         if let Some(h) = self.height {
             container = container.height(h);
+        }
+
+        if let Some(align_x) = self.align_x {
+            container = container.align_x(align_x);
+        }
+
+        if let Some(align_y) = self.align_y {
+            container = container.align_y(align_y);
         }
 
         if let Some(p) = self.padding {

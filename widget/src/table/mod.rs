@@ -1,8 +1,13 @@
 mod cell;
+mod content_cell;
+mod header_cell;
 pub use cell::Cell;
+pub use content_cell::ContentCell;
+pub use header_cell::HeaderCell;
 
-use iced::widget::{Column, Container, Row, container, scrollable};
+use iced::widget::{Column, Container, container, scrollable};
 use iced::{Element, Length, Padding, Theme};
+
 use std::sync::Arc;
 
 const DEFAULT_PADDING_TABLE: Padding = Padding {
@@ -17,102 +22,20 @@ const DEFAULT_PADDING_TABLE: Padding = Padding {
 //     Horizontal,
 // }
 
-pub struct ContentCell<M> {
-    cells: Vec<Cell<M>>,
-}
-
-impl<M: Clone + 'static> ContentCell<M> {
-    pub fn new() -> Self {
-        Self { cells: Vec::new() }
-    }
-
-    pub fn cell(mut self, cell: impl Into<Cell<M>>) -> Self {
-        self.cells.push(cell.into());
-        self
-    }
-
-    pub fn cells<I>(mut self, cells: I) -> Self
-    where
-        I: IntoIterator<Item = Cell<M>>,
-    {
-        self.cells.extend(cells);
-        self
-    }
-
-    pub fn build(self) -> Element<'static, M> {
-        let mut row = Row::new();
-
-        for cell in self.cells {
-            row = row.push(cell.build());
-        }
-
-        // let container = Container::new(row);
-        // container.into()
-        row.into()
-    }
-}
-
-impl<M: Clone + 'static> From<Cell<M>> for ContentCell<M> {
-    fn from(cell: Cell<M>) -> Self {
-        Self::new().cell(cell)
-    }
-}
-
-pub struct HeaderCell<M> {
-    cells: Vec<Cell<M>>,
-}
-
-impl<M: Clone + 'static> HeaderCell<M> {
-    pub fn new() -> Self {
-        Self { cells: Vec::new() }
-    }
-
-    pub fn cell(mut self, cell: impl Into<Cell<M>>) -> Self {
-        self.cells.push(cell.into());
-        self
-    }
-
-    pub fn cells<I>(mut self, cells: I) -> Self
-    where
-        I: IntoIterator<Item = Cell<M>>,
-    {
-        self.cells.extend(cells);
-        self
-    }
-
-    pub fn build(self) -> Element<'static, M> {
-        let mut row = Row::new().spacing(10);
-
-        for cell in self.cells {
-            row = row.push(cell.build());
-        }
-
-        // let container = Container::new(row);
-        // container.into()
-        row.into()
-    }
-}
-
-impl<M: Clone + 'static> From<Cell<M>> for HeaderCell<M> {
-    fn from(cell: Cell<M>) -> Self {
-        Self::new().cell(cell)
-    }
-}
-
-type ContentStyleFn = dyn Fn(usize, &Theme) -> container::Style;
+type ContentStyleFn = dyn Fn(&Theme) -> container::Style;
 
 type HeaderStyleFn = dyn Fn(&Theme) -> container::Style;
 
 pub struct Table<M> {
-    headers: Vec<HeaderCell<M>>,
+    header: Option<HeaderCell<M>>,
     contents: Vec<ContentCell<M>>,
     content_selected: Option<usize>,
     header_selected: Option<usize>,
     // mode: TableMode,
     spacing: u32,
-    width: Length,
+    width: Option<Length>,
     height: Option<Length>,
-    padding: Padding,
+    padding: Option<Padding>,
     header_style: Option<Arc<HeaderStyleFn>>,
     content_style: Option<Arc<ContentStyleFn>>,
 }
@@ -120,30 +43,22 @@ pub struct Table<M> {
 impl<M: 'static + Clone> Table<M> {
     pub fn new() -> Self {
         Self {
-            headers: Vec::new(),
+            header: None,
             contents: Vec::new(),
             content_selected: None,
             header_selected: None,
             // mode: TableMode::Vertical,
             spacing: 0,
-            width: Length::Fill,
+            width: Some(Length::Fill),
             height: None,
-            padding: DEFAULT_PADDING_TABLE,
+            padding: Some(DEFAULT_PADDING_TABLE),
             header_style: None,
             content_style: None,
         }
     }
 
     pub fn header(mut self, header: impl Into<HeaderCell<M>>) -> Self {
-        self.headers.push(header.into());
-        self
-    }
-
-    pub fn headers<I>(mut self, headers: I) -> Self
-    where
-        I: IntoIterator<Item = HeaderCell<M>>,
-    {
-        self.headers.extend(headers);
+        self.header = Some(header.into());
         self
     }
 
@@ -189,7 +104,7 @@ impl<M: 'static + Clone> Table<M> {
     }
 
     pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
+        self.width = Some(width);
         self
     }
 
@@ -199,7 +114,7 @@ impl<M: 'static + Clone> Table<M> {
     }
 
     pub fn padding(mut self, padding: impl Into<Padding>) -> Self {
-        self.padding = padding.into();
+        self.padding = Some(padding.into());
         self
     }
 
@@ -213,7 +128,7 @@ impl<M: 'static + Clone> Table<M> {
 
     pub fn content_style<F>(mut self, f: F) -> Self
     where
-        F: Fn(usize, &Theme) -> container::Style + 'static,
+        F: Fn(&Theme) -> container::Style + 'static,
     {
         self.content_style = Some(Arc::new(f));
         self
@@ -223,38 +138,39 @@ impl<M: 'static + Clone> Table<M> {
         let mut scroll_content = Column::new().spacing(self.spacing);
 
         for (i, content) in self.contents.into_iter().enumerate() {
-            let content_element: Element<'static, M> = content.build();
-
-            let mut content_container = Container::new(content_element).padding(self.padding);
-
-            if let Some(style_fn) = self.content_style.clone() {
-                content_container = content_container.style(move |theme| style_fn(i, theme));
-            }
-
-            scroll_content = scroll_content.push(content_container);
+            let content_element: Element<'static, M> = content.build(i);
+            scroll_content = scroll_content.push(content_element);
         }
 
-        let mut header_content = Column::new();
-
-        for header in self.headers.into_iter() {
-            let header_element: Element<'static, M> = header.build();
-
-            header_content =
-                header_content.push(Container::new(header_element).padding(self.padding));
+        let mut scroll_container = Container::new(scrollable(scroll_content));
+        if let Some(style_fn) = self.content_style.clone() {
+            scroll_container = scroll_container.style(move |theme| style_fn(theme));
         }
 
-        header_content = header_content.push(scrollable(scroll_content));
+        let mut header_container = Container::new(if let Some(h) = self.header {
+            h.build()
+        } else {
+            iced::widget::Space::new().into()
+        });
 
-        let mut parent_col = Container::new(header_content)
-            .width(self.width)
-            .padding(self.padding);
+        if let Some(style_fn) = self.header_style.clone() {
+            header_container = header_container.style(move |theme| style_fn(theme));
+        }
+
+        let table_col = Column::new().push(header_container).push(scroll_container);
+
+        let mut parent_col = Container::new(table_col);
+
+        if let Some(w) = self.width {
+            parent_col = parent_col.width(w);
+        }
 
         if let Some(h) = self.height {
             parent_col = parent_col.height(h);
         }
 
-        if let Some(style_fn) = self.header_style.clone() {
-            parent_col = parent_col.style(move |theme| style_fn(theme));
+        if let Some(p) = self.padding {
+            parent_col = parent_col.padding(p);
         }
 
         parent_col.into()

@@ -13,13 +13,6 @@ use widget::button_style::{ButtonStyle, CustomButton};
 use widget::drop_file::DropFile;
 use widget::table::{Cell, ContentCell, HeaderCell, Table};
 
-// ========
-
-// use cleaner::{get_default_folder_icon, ns_image_to_rgba_bytes};
-// use iced::widget::image;
-
-// ========
-
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     let drop_zone: Element<AppMessage> = DropFile::new(
         CustomButton::new()
@@ -76,10 +69,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 .cell(Cell::new(
                     CustomButton::new()
                         .content_element(
-                            // iced::widget::text(label.clone())
-                            //     .size(12)
-                            //     .wrapping(Wrapping::WordOrGlyph),
-                            iced::widget::Row::new()
+                            Row::new()
                                 .spacing(8)
                                 .align_y(alignment::Vertical::Center)
                                 .push(icon_element)
@@ -98,6 +88,25 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 .cell(Cell::new(
                     Text::new(display_path.clone()).size(12).width(Length::Fill),
                 ))
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center)
+                .style(|i, _theme| {
+                    let color = if i % 2 == 0 {
+                        Color::from_rgb8(32, 36, 42)
+                    } else {
+                        Color::from_rgb8(28, 32, 38)
+                    };
+
+                    container::Style {
+                        background: Some(color.into()),
+                        border: Border {
+                            color: Color::TRANSPARENT,
+                            width: 1.0,
+                            radius: 5.0.into(),
+                        },
+                        ..Default::default()
+                    }
+                })
         })
         .collect::<Vec<ContentCell<AppMessage>>>();
 
@@ -119,23 +128,22 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         .header(headers)
         .contents(contents)
         .content_selected(state.selected_file)
-        .content_style(|i, _theme| {
-            let color = if i % 2 == 0 {
-                Color::from_rgb8(32, 36, 42)
-            } else {
-                Color::from_rgb8(28, 32, 38)
-            };
-
-            container::Style {
-                background: Some(color.into()),
-                border: Border {
-                    color: Color::TRANSPARENT,
-                    width: 1.0,
-                    radius: 5.0.into(),
-                },
-                ..Default::default()
-            }
-        })
+        // .content_style(|i, _theme| {
+        //     let color = if i % 2 == 0 {
+        //         Color::from_rgb8(32, 36, 42)
+        //     } else {
+        //         Color::from_rgb8(28, 32, 38)
+        //     };
+        //     container::Style {
+        //         background: Some(color.into()),
+        //         border: Border {
+        //             color: Color::TRANSPARENT,
+        //             width: 1.0,
+        //             radius: 5.0.into(),
+        //         },
+        //         ..Default::default()
+        //     }
+        // })
         .build();
 
     let center_view = if !has_real_items {
