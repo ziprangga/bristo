@@ -14,21 +14,49 @@ use widget::drop_file::DropFile;
 use widget::table::{Cell, ContentCell, HeaderCell, Table};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
-    let drop_zone: Element<AppMessage> = DropFile::new(
-        CustomButton::new()
-            .content_element(
-                iced::widget::text("Drag & Drop App here or click to browse")
-                    .size(20)
-                    .align_x(alignment::Horizontal::Center)
-                    .align_y(alignment::Vertical::Center),
-            )
-            .width(Length::Fixed(200.0))
-            .height(Length::Fixed(200.0))
-            .style(ButtonStyle::BlankBorder)
-            .on_press(AppMessage::AppPath)
-            .build(),
-    )
-    .build();
+    let button_input = CustomButton::new()
+        .content_element(
+            iced::widget::text("Drag & Drop App here or click to browse")
+                .size(20)
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center),
+        )
+        .content_layout(|c| {
+            c.align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center)
+        })
+        .width(Length::Fixed(200.0))
+        .height(Length::Fixed(200.0))
+        .style(ButtonStyle::BlankBorder)
+        .on_press(AppMessage::AppPath)
+        .build();
+
+    let drop_zone: Element<AppMessage> = DropFile::new()
+        .content_element(button_input)
+        .content_layout(|c| {
+            c.width(Length::Fill)
+                .height(Length::Fill)
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center)
+                .padding(5)
+                .style(|_| container::Style {
+                    background: None,
+                    text_color: None,
+                    border: Border {
+                        color: Color {
+                            r: 1.0,
+                            g: 1.0,
+                            b: 1.0,
+                            a: 0.06,
+                        },
+                        width: 1.0,
+                        radius: 8.0.into(),
+                    },
+                    snap: false,
+                    shadow: Default::default(),
+                })
+        })
+        .build();
 
     let entries = state.cleaner.all_entries_enumerate();
     // let tree_views = TreeView::from_enumerated_entries(state.cleaner.all_entries_enumerate());
@@ -64,32 +92,40 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 None => iced::widget::Space::new().width(16.0).into(),
             };
 
+            let name_with_icon = Row::new()
+                .push(icon_element)
+                .push(
+                    iced::widget::text(label.clone())
+                        .size(12)
+                        .wrapping(Wrapping::WordOrGlyph),
+                )
+                .spacing(8)
+                .align_y(alignment::Vertical::Center);
+
+            let cell_name_with_icon = Cell::new(
+                CustomButton::new()
+                    .content_element(name_with_icon)
+                    .width(Length::Fill)
+                    .on_press(AppMessage::OpenSelectedPath(i))
+                    .style(ButtonStyle::Blank)
+                    .build(),
+            );
+
+            let cell_path = Cell::new(
+                Text::new(display_path.clone())
+                    .size(12)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .align_x(alignment::Horizontal::Left)
+                    .align_y(alignment::Vertical::Center),
+            );
+
             // ===============
             ContentCell::new()
-                .cell(Cell::new(
-                    CustomButton::new()
-                        .content_element(
-                            Row::new()
-                                .spacing(8)
-                                .align_y(alignment::Vertical::Center)
-                                .push(icon_element)
-                                .push(
-                                    iced::widget::text(label.clone())
-                                        .size(12)
-                                        .wrapping(Wrapping::WordOrGlyph),
-                                ),
-                        )
-                        .content_layout(|c| c.align_x(alignment::Horizontal::Left))
-                        .width(Length::Fill)
-                        .on_press(AppMessage::OpenSelectedPath(i))
-                        .style(ButtonStyle::Blank)
-                        .build(),
-                ))
-                .cell(Cell::new(
-                    Text::new(display_path.clone()).size(12).width(Length::Fill),
-                ))
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
+                .cell(cell_name_with_icon)
+                .cell(cell_path)
+                .width(Length::Fill)
+                .padding(5)
                 .style(|i, _theme| {
                     let color = if i % 2 == 0 {
                         Color::from_rgb8(32, 36, 42)
@@ -127,23 +163,9 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     let list_view = Table::new()
         .header(headers)
         .contents(contents)
-        .content_selected(state.selected_file)
-        // .content_style(|i, _theme| {
-        //     let color = if i % 2 == 0 {
-        //         Color::from_rgb8(32, 36, 42)
-        //     } else {
-        //         Color::from_rgb8(28, 32, 38)
-        //     };
-        //     container::Style {
-        //         background: Some(color.into()),
-        //         border: Border {
-        //             color: Color::TRANSPARENT,
-        //             width: 1.0,
-        //             radius: 5.0.into(),
-        //         },
-        //         ..Default::default()
-        //     }
-        // })
+        .padding(5)
+        .width(Length::Fill)
+        // .content_selected(state.selected_file)
         .build();
 
     let center_view = if !has_real_items {

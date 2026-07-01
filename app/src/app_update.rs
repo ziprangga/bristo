@@ -215,7 +215,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             // Consumes the backend cache map, loads into state.icon_cache, and drops the backend instantly
             state.consume_backend_icon(backend_cache);
 
-            Task::none() // No further processing required for this step
+            Task::none()
         }
 
         AppMessage::OpenSelectedPath(index) => {

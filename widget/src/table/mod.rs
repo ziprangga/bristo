@@ -8,15 +8,6 @@ pub use header_cell::HeaderCell;
 use iced::widget::{Column, Container, container, scrollable};
 use iced::{Element, Length, Padding, Theme};
 
-use std::sync::Arc;
-
-const DEFAULT_PADDING_TABLE: Padding = Padding {
-    top: 5.0,
-    bottom: 5.0,
-    right: 5.0,
-    left: 5.0,
-};
-
 // pub enum TableMode {
 //     Vertical,
 //     Horizontal,
@@ -36,8 +27,8 @@ pub struct Table<M> {
     width: Option<Length>,
     height: Option<Length>,
     padding: Option<Padding>,
-    header_style: Option<Arc<HeaderStyleFn>>,
-    content_style: Option<Arc<ContentStyleFn>>,
+    header_style: Option<Box<HeaderStyleFn>>,
+    content_style: Option<Box<ContentStyleFn>>,
 }
 
 impl<M: 'static + Clone> Table<M> {
@@ -49,9 +40,9 @@ impl<M: 'static + Clone> Table<M> {
             header_selected: None,
             // mode: TableMode::Vertical,
             spacing: 0,
-            width: Some(Length::Fill),
+            width: None,
             height: None,
-            padding: Some(DEFAULT_PADDING_TABLE),
+            padding: None,
             header_style: None,
             content_style: None,
         }
@@ -122,7 +113,7 @@ impl<M: 'static + Clone> Table<M> {
     where
         F: Fn(&Theme) -> container::Style + 'static,
     {
-        self.header_style = Some(Arc::new(f));
+        self.header_style = Some(Box::new(f));
         self
     }
 
@@ -130,7 +121,7 @@ impl<M: 'static + Clone> Table<M> {
     where
         F: Fn(&Theme) -> container::Style + 'static,
     {
-        self.content_style = Some(Arc::new(f));
+        self.content_style = Some(Box::new(f));
         self
     }
 
@@ -143,7 +134,7 @@ impl<M: 'static + Clone> Table<M> {
         }
 
         let mut scroll_container = Container::new(scrollable(scroll_content));
-        if let Some(style_fn) = self.content_style.clone() {
+        if let Some(style_fn) = self.content_style {
             scroll_container = scroll_container.style(move |theme| style_fn(theme));
         }
 
@@ -153,7 +144,7 @@ impl<M: 'static + Clone> Table<M> {
             iced::widget::Space::new().into()
         });
 
-        if let Some(style_fn) = self.header_style.clone() {
+        if let Some(style_fn) = self.header_style {
             header_container = header_container.style(move |theme| style_fn(theme));
         }
 

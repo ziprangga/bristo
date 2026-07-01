@@ -1,19 +1,13 @@
+use iced::widget::Id;
 use iced::widget::{Container, container};
 use iced::{Element, Length, Padding, Theme, alignment};
 
-use std::sync::atomic::{AtomicUsize, Ordering};
-static NEXT_ID: AtomicUsize = AtomicUsize::new(0);
-
-fn next_id() -> CellId {
-    NEXT_ID.fetch_add(1, Ordering::Relaxed)
-}
-
-pub type CellId = usize;
-type CellStyleFn = dyn Fn(CellId, bool, &Theme) -> container::Style;
+pub type CellId = Id;
+type CellStyleFn = dyn Fn(&CellId, bool, &Theme) -> container::Style;
 
 pub struct Cell<M> {
     content: Element<'static, M>,
-    id: CellId,
+    id: Option<CellId>,
     selected: Option<CellId>,
     width: Option<Length>,
     height: Option<Length>,
@@ -27,7 +21,7 @@ impl<M: Clone + 'static> Cell<M> {
     pub fn new(content: impl Into<Element<'static, M>>) -> Self {
         Self {
             content: content.into(),
-            id: next_id(),
+            id: None,
             selected: None,
             width: None,
             height: None,
@@ -43,13 +37,13 @@ impl<M: Clone + 'static> Cell<M> {
         self
     }
 
-    pub fn set_id(mut self, id: CellId) -> Self {
-        self.id = id;
+    pub fn id(mut self, id: impl Into<CellId>) -> Self {
+        self.id = Some(id.into());
         self
     }
 
-    pub fn get_id(&self) -> CellId {
-        self.id
+    pub fn get_id(&self) -> Option<&CellId> {
+        self.id.as_ref()
     }
 
     pub fn selected(mut self, id: Option<CellId>) -> Self {
@@ -57,8 +51,11 @@ impl<M: Clone + 'static> Cell<M> {
         self
     }
 
-    pub fn is_selected(&self, id: usize) -> bool {
-        self.selected == Some(id)
+    pub fn is_selected(&self, target_id: &CellId) -> bool {
+        match &self.id {
+            Some(current_id) => current_id == target_id,
+            None => false,
+        }
     }
 
     pub fn width(mut self, width: Length) -> Self {
@@ -88,7 +85,7 @@ impl<M: Clone + 'static> Cell<M> {
 
     pub fn style_fn<F>(mut self, f: F) -> Self
     where
-        F: Fn(CellId, bool, &Theme) -> container::Style + 'static,
+        F: Fn(&CellId, bool, &Theme) -> container::Style + 'static,
     {
         self.style_fn = Some(Box::new(f));
         self
@@ -96,6 +93,10 @@ impl<M: Clone + 'static> Cell<M> {
 
     pub fn build(self) -> Element<'static, M> {
         let mut container = Container::new(self.content);
+
+        let cell_id = self.id.unwrap_or_else(CellId::unique);
+
+        container = container.id(cell_id.clone());
 
         if let Some(w) = self.width {
             container = container.width(w);
@@ -118,10 +119,11 @@ impl<M: Clone + 'static> Cell<M> {
         }
 
         if let Some(style_fn) = self.style_fn {
-            let cell_id = self.id;
-            let selected = self.selected == Some(cell_id);
-
-            container = container.style(move |theme| style_fn(cell_id, selected, theme));
+            // let cell_id = self.id;
+            // let selected = self.selected == Some(cell_id);
+            let selected = Some(cell_id.clone()) == self.selected;
+            let closure_id = cell_id.clone();
+            container = container.style(move |theme| style_fn(&closure_id, selected, theme));
         }
 
         container.into()

@@ -3,22 +3,20 @@ use iced::{Element, Length, alignment};
 
 pub struct ButtonContent<M> {
     content: Element<'static, M>,
-
     width: Option<Length>,
     height: Option<Length>,
-
-    align_x: alignment::Horizontal,
-    align_y: alignment::Vertical,
+    align_x: Option<alignment::Horizontal>,
+    align_y: Option<alignment::Vertical>,
 }
 
 impl<M: Clone + 'static> ButtonContent<M> {
     pub fn new(content: impl Into<Element<'static, M>>) -> Self {
         Self {
             content: content.into(),
-            width: Some(Length::Fill),
+            width: None,
             height: None,
-            align_x: alignment::Horizontal::Center,
-            align_y: alignment::Vertical::Center,
+            align_x: None,
+            align_y: None,
         }
     }
 
@@ -33,21 +31,26 @@ impl<M: Clone + 'static> ButtonContent<M> {
     }
 
     pub fn align_x(mut self, align: alignment::Horizontal) -> Self {
-        self.align_x = align;
+        self.align_x = Some(align);
 
         self
     }
 
     pub fn align_y(mut self, align: alignment::Vertical) -> Self {
-        self.align_y = align;
+        self.align_y = Some(align);
 
         self
     }
 
     pub fn build(self) -> Element<'static, M> {
-        let mut container = Container::new(self.content)
-            .align_x(self.align_x)
-            .align_y(self.align_y);
+        let mut container = Container::new(self.content);
+        if let Some(align_x) = self.align_x {
+            container = container.align_x(align_x);
+        }
+
+        if let Some(align_y) = self.align_y {
+            container = container.align_y(align_y);
+        }
 
         if let Some(w) = self.width {
             container = container.width(w);

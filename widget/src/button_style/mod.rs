@@ -10,20 +10,12 @@ use iced::Padding;
 use iced::widget::button::Status;
 use iced::{Length, Theme};
 
-const DEFAULT_PADDING_BUTTON: Padding = Padding {
-    top: 5.0,
-    bottom: 5.0,
-    right: 10.0,
-    left: 10.0,
-};
-
 pub struct CustomButton<M> {
     content: Option<ButtonContent<M>>,
-
     on_press: Option<M>,
-    width: Length,
+    width: Option<Length>,
     height: Option<Length>,
-    padding: Padding,
+    padding: Option<Padding>,
     style_fn: ButtonStyle,
 }
 
@@ -32,9 +24,9 @@ impl<M: Clone + 'static> CustomButton<M> {
         Self {
             content: None,
             on_press: None,
-            width: Length::Fill,
+            width: None,
             height: None,
-            padding: DEFAULT_PADDING_BUTTON,
+            padding: None,
             style_fn: ButtonStyle::Default,
         }
     }
@@ -63,7 +55,7 @@ impl<M: Clone + 'static> CustomButton<M> {
     }
 
     pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
+        self.width = Some(width);
         self
     }
 
@@ -73,7 +65,7 @@ impl<M: Clone + 'static> CustomButton<M> {
     }
 
     pub fn padding(mut self, padding: impl Into<Padding>) -> Self {
-        self.padding = padding.into();
+        self.padding = Some(padding.into());
         self
     }
 
@@ -88,12 +80,18 @@ impl<M: Clone + 'static> CustomButton<M> {
             None => return iced::widget::Space::new().into(),
         };
 
-        let mut button = iced::widget::button(content)
-            .width(self.width)
-            .padding(self.padding);
+        let mut button = iced::widget::button(content);
 
-        if let Some(height) = self.height {
-            button = button.height(height);
+        if let Some(w) = self.width {
+            button = button.width(w);
+        }
+
+        if let Some(h) = self.height {
+            button = button.height(h);
+        }
+
+        if let Some(p) = self.padding {
+            button = button.padding(p);
         }
 
         let styled =

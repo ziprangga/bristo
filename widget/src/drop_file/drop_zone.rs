@@ -3,17 +3,14 @@ use iced::widget::{Container, container};
 use iced::{Element, Length};
 use iced::{Theme, alignment};
 
-use crate::drop_file::DEFAULT_PADDING_DROP;
-use crate::drop_file::default_drop_style;
-
 type DropStyleFn = dyn Fn(&Theme) -> container::Style;
 
 pub struct DropZone<M> {
     content: Element<'static, M>,
-    width: Length,
+    width: Option<Length>,
     height: Option<Length>,
-    align_x: alignment::Horizontal,
-    align_y: alignment::Vertical,
+    align_x: Option<alignment::Horizontal>,
+    align_y: Option<alignment::Vertical>,
     padding: Option<Padding>,
     style_fn: Option<Box<DropStyleFn>>,
 }
@@ -22,22 +19,17 @@ impl<M: Clone + 'static> DropZone<M> {
     pub fn new(content: impl Into<Element<'static, M>>) -> Self {
         Self {
             content: content.into(),
-            width: Length::Fill,
-            height: Some(Length::Fill),
-            align_x: alignment::Horizontal::Center,
-            align_y: alignment::Vertical::Center,
-            padding: Some(DEFAULT_PADDING_DROP),
-            style_fn: Some(Box::new(default_drop_style)),
+            width: None,
+            height: None,
+            align_x: None,
+            align_y: None,
+            padding: None,
+            style_fn: None,
         }
     }
 
-    pub fn content(mut self, content: impl Into<Element<'static, M>>) -> Self {
-        self.content = content.into();
-        self
-    }
-
     pub fn width(mut self, width: Length) -> Self {
-        self.width = width;
+        self.width = Some(width);
         self
     }
 
@@ -47,12 +39,12 @@ impl<M: Clone + 'static> DropZone<M> {
     }
 
     pub fn align_x(mut self, x: impl Into<alignment::Horizontal>) -> Self {
-        self.align_x = x.into();
+        self.align_x = Some(x.into());
         self
     }
 
     pub fn align_y(mut self, y: impl Into<alignment::Vertical>) -> Self {
-        self.align_y = y.into();
+        self.align_y = Some(y.into());
         self
     }
 
@@ -70,13 +62,21 @@ impl<M: Clone + 'static> DropZone<M> {
     }
 
     pub fn build(self) -> Element<'static, M> {
-        let mut container = Container::new(self.content)
-            .align_x(self.align_x)
-            .align_y(self.align_y)
-            .width(self.width);
+        let mut container = Container::new(self.content);
+
+        if let Some(w) = self.width {
+            container = container.width(w);
+        }
 
         if let Some(h) = self.height {
             container = container.height(h);
+        }
+
+        if let Some(x) = self.align_x {
+            container = container.align_x(x);
+        }
+        if let Some(y) = self.align_y {
+            container = container.align_y(y);
         }
 
         if let Some(p) = self.padding {

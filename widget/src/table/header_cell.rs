@@ -1,9 +1,9 @@
 use iced::Element;
 use iced::Theme;
+use iced::widget::Id;
 use iced::widget::Row;
 use iced::widget::{Container, container};
 use iced::{Length, Padding, alignment};
-use std::sync::Arc;
 
 use crate::table::cell::Cell;
 
@@ -17,7 +17,7 @@ pub struct HeaderCell<M> {
     align_y: Option<alignment::Vertical>,
     spacing: Option<u32>,
     padding: Option<Padding>,
-    style_fn: Option<Arc<HeaderCellStyleFn>>,
+    style_fn: Option<Box<HeaderCellStyleFn>>,
 }
 
 impl<M: Clone + 'static> HeaderCell<M> {
@@ -44,6 +44,27 @@ impl<M: Clone + 'static> HeaderCell<M> {
         I: IntoIterator<Item = Cell<M>>,
     {
         self.cells.extend(cells);
+        self
+    }
+
+    pub fn cell_element(
+        mut self,
+        content: impl Into<Element<'static, M>>,
+        id: impl Into<Id>,
+    ) -> Self {
+        self.cells.push(Cell::new(content).id(id));
+        self
+    }
+
+    pub fn cells_layout<F>(mut self, id: &Id, f: F) -> Self
+    where
+        F: FnOnce(Cell<M>) -> Cell<M>,
+    {
+        if let Some(index) = self.cells.iter().position(|cell| cell.get_id() == Some(id)) {
+            // Remove the cell, transform it via the closure, and put it back
+            let cell = self.cells.remove(index);
+            self.cells.insert(index, f(cell));
+        }
         self
     }
 
@@ -81,7 +102,7 @@ impl<M: Clone + 'static> HeaderCell<M> {
     where
         F: Fn(&Theme) -> container::Style + 'static,
     {
-        self.style_fn = Some(Arc::new(f));
+        self.style_fn = Some(Box::new(f));
         self
     }
 
@@ -109,12 +130,14 @@ impl<M: Clone + 'static> HeaderCell<M> {
         if let Some(x) = self.align_x {
             container = container.align_x(x);
         }
+
         if let Some(y) = self.align_y {
             container = container.align_y(y);
         }
 
-        let row_padding = self.padding.unwrap_or(Padding::new(0.0));
-        container = container.padding(row_padding);
+        if let Some(p) = self.padding {
+            container = container.padding(p);
+        }
 
         if let Some(style_fn) = self.style_fn {
             container = container.style(move |theme| style_fn(theme));
