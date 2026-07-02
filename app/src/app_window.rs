@@ -3,33 +3,27 @@ use iced::widget::Stack;
 use iced::widget::text::Wrapping;
 use iced::{
     Border, Color, Padding, alignment,
-    widget::{Container, Row, Space, Text, container, row, text},
+    widget::{Container, Row, Space, Text, button, container, row, text},
 };
 use iced::{Element, Length};
 
 use crate::app_state::{AppMessage, AppState};
+use crate::ui_element::{ButtonThemeStyle, CustomStyle};
 // use crate::app_tree_view::TreeView;
-use widget::button_style::{ButtonStyle, CustomButton};
-use widget::drop_file::DropFile;
-use widget::table::{Cell, ContentCell, HeaderCell, Table};
+use crate::ui_element::DropFile;
+use crate::ui_element::{Cell, ContentCell, HeaderCell, Table};
 
 pub fn view(state: &AppState) -> Element<'_, AppMessage> {
-    let button_input = CustomButton::new()
-        .content_element(
-            iced::widget::text("Drag & Drop App here or click to browse")
-                .size(20)
-                .align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center),
-        )
-        .content_layout(|c| {
-            c.align_x(alignment::Horizontal::Center)
-                .align_y(alignment::Vertical::Center)
-        })
+    let text_box = text("Drag & Drop App here or click to browse")
+        .size(20)
+        .align_x(alignment::Horizontal::Center)
+        .align_y(alignment::Vertical::Center);
+
+    let button_input = button(text_box)
         .width(Length::Fixed(200.0))
         .height(Length::Fixed(200.0))
-        .style(ButtonStyle::BlankBorder)
         .on_press(AppMessage::AppPath)
-        .build();
+        .custom_style(ButtonThemeStyle::BlankBorder);
 
     let drop_zone: Element<AppMessage> = DropFile::new()
         .content_element(button_input)
@@ -103,12 +97,10 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 .align_y(alignment::Vertical::Center);
 
             let cell_name_with_icon = Cell::new(
-                CustomButton::new()
-                    .content_element(name_with_icon)
+                button(name_with_icon)
+                    .custom_style(ButtonThemeStyle::Blank)
                     .width(Length::Fill)
-                    .on_press(AppMessage::OpenSelectedPath(i))
-                    .style(ButtonStyle::Blank)
-                    .build(),
+                    .on_press(AppMessage::OpenSelectedPath(i)),
             );
 
             let cell_path = Cell::new(
@@ -173,6 +165,15 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         list_view
     };
 
+    let button_export_bom_files_active = button(text("Export Bom Logs").size(12))
+        .width(Length::Shrink)
+        .on_press(AppMessage::ExportBomFilesLoc)
+        .custom_style(ButtonThemeStyle::CustomRounded);
+
+    let button_export_bom_files_disabled = button(text("Export Bom Logs").size(12))
+        .width(Length::Shrink)
+        .custom_style(ButtonThemeStyle::CustomRounded);
+
     let button_export_bom_files = if !state.app_path.as_os_str().is_empty()
         && !state
             .cleaner
@@ -180,45 +181,35 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             .as_app_log_receipt()
             .is_empty()
     {
-        Container::new(
-            CustomButton::new()
-                .content_element(iced::widget::text("Export Bom Logs").size(12))
-                .content_layout(|c| {
-                    c.align_x(alignment::Horizontal::Left)
-                        .align_y(alignment::Vertical::Center)
-                })
-                .width(Length::Shrink)
-                .style(ButtonStyle::CustomRounded)
-                .on_press(AppMessage::ExportBomFilesLoc)
-                .build(),
-        )
+        Container::new(button_export_bom_files_active)
     } else {
-        Container::new(
-            CustomButton::new()
-                .content_element(iced::widget::text("Export Bom Logs").size(12))
-                .content_layout(|c| {
-                    c.align_x(alignment::Horizontal::Left)
-                        .align_y(alignment::Vertical::Center)
-                })
-                .width(Length::Shrink)
-                .style(ButtonStyle::CustomRounded)
-                .build(),
-        )
+        Container::new(button_export_bom_files_disabled)
     };
 
     let button_clear_list = Container::new(
-        CustomButton::new()
-            .content_element(iced::widget::text("Clear list").size(12))
-            .content_layout(|c| {
-                c.align_x(alignment::Horizontal::Center)
-                    .align_y(alignment::Vertical::Center)
-            })
+        button(text("Clear list").size(12))
             .width(Length::Fill)
-            .style(ButtonStyle::BlankBorder)
-            .on_press(AppMessage::ClearList)
-            .build(),
+            .custom_style(ButtonThemeStyle::BlankBorder)
+            .on_press(AppMessage::ClearList),
     )
     .width(Length::Shrink);
+
+    let button_re_scan = if !state.app_path.as_os_str().is_empty() {
+        Container::new(
+            button(text("Re Scan").size(12))
+                .width(Length::Fill)
+                .custom_style(ButtonThemeStyle::CustomRounded)
+                .on_press(AppMessage::ReScanApp),
+        )
+        .width(Length::Shrink)
+    } else {
+        Container::new(
+            button(text("Re Scan").size(12))
+                .width(Length::Fill)
+                .custom_style(ButtonThemeStyle::CustomRounded),
+        )
+        .width(Length::Shrink)
+    };
 
     let status_msg = Container::new(
         text(state.show_status.to_string())
@@ -234,16 +225,10 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .align_y(alignment::Vertical::Center);
 
     let button_delete = Container::new(
-        CustomButton::new()
-            .content_element(iced::widget::text("Move to Trash").size(12))
-            .content_layout(|c| {
-                c.align_x(alignment::Horizontal::Center)
-                    .align_y(alignment::Vertical::Center)
-            })
+        button(text("Move to Trash").size(12))
             .width(Length::Fill)
-            .style(ButtonStyle::Danger)
-            .on_press(AppMessage::MoveToTrash)
-            .build(),
+            .custom_style(ButtonThemeStyle::Danger)
+            .on_press(AppMessage::MoveToTrash),
     )
     .width(Length::Shrink)
     .align_x(alignment::Horizontal::Center)
@@ -260,9 +245,10 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         Row::new()
             .push(button_export_bom_files)
             .push(Space::new().width(Length::Fill))
+            .push(button_re_scan)
             .push(button_clear_list)
             .width(Length::Fill)
-            .spacing(5)
+            .spacing(10)
             .padding([3, 20])
             .align_y(alignment::Vertical::Center)
             .height(Length::Shrink),

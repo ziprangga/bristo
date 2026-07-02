@@ -21,6 +21,7 @@ pub enum AppMessage {
     AppPath,
     ProcessApp(PathBuf),
     ScanApp(Result<Cleaner, String>),
+    ReScanApp,
 
     ModalAsk(ModalAskMessage),
     FindProcs(Result<Cleaner, String>),

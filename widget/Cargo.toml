@@ -1,7 +1,0 @@
-[package]
-name = "widget"
-version = { workspace = true }
-edition = { workspace = true }
-
-[dependencies]
-iced = { workspace = true }

@@ -4,6 +4,7 @@ mod app_task;
 // mod app_tree_view;
 mod app_update;
 mod app_window;
+pub mod ui_element;
 
 use crate::app_state::{AppMessage, AppState};
 use crate::app_update::{subscription, update};

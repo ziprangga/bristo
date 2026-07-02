@@ -179,6 +179,21 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             Task::none()
         }
 
+        AppMessage::ReScanApp => {
+            // Check if the path is empty (meaning no app has been selected yet)
+            if state.app_path.as_os_str().is_empty() {
+                let warning_status = simple_status::status!(
+                    stage: "Warning",
+                    message: "No application path found to re-scan.",
+                );
+                Task::done(AppMessage::ShowStatus(warning_status))
+            } else {
+                // Forward the app path back to the initialization logic
+                let path_to_process = state.app_path.clone();
+                Task::done(AppMessage::ProcessApp(path_to_process))
+            }
+        }
+
         AppMessage::UpdateCleaner(cleaner) => {
             state.cleaner = cleaner;
 

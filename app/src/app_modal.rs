@@ -1,10 +1,10 @@
 use iced::Element;
 use iced::widget::mouse_area;
 use iced::widget::opaque;
-use iced::widget::{Column, Container, Row, Text, container};
+use iced::widget::{Column, Container, Row, Text, button, container, text};
 use iced::{Background, Border, Color, Length, alignment};
 
-use widget::button_style::{ButtonStyle, CustomButton};
+use crate::ui_element::{ButtonThemeStyle, CustomStyle};
 
 #[derive(Clone, Default)]
 pub struct ModalAsk {
@@ -53,20 +53,16 @@ impl ModalAsk {
             .align_y(alignment::Vertical::Center);
 
         // Yes button
-        let yes_btn = CustomButton::new()
-            .content_element(iced::widget::text("Yes").size(12))
+        let yes_btn = button(text("Yes").size(12))
             .width(Length::Fill)
-            .on_press(ModalAskMessage::ConfirmMsg(true))
-            .style(ButtonStyle::Danger)
-            .build();
+            .custom_style(ButtonThemeStyle::Danger)
+            .on_press(ModalAskMessage::ConfirmMsg(true));
 
         // No button
-        let no_btn = CustomButton::new()
-            .content_element(iced::widget::text("No").size(12))
+        let no_btn = button(text("Yes").size(12))
             .width(Length::Fill)
-            .on_press(ModalAskMessage::ConfirmMsg(false))
-            .style(ButtonStyle::BlankBorder)
-            .build();
+            .custom_style(ButtonThemeStyle::BlankBorder)
+            .on_press(ModalAskMessage::ConfirmMsg(false));
 
         // buttons row
         let buttons_row = Row::new().spacing(10).push(yes_btn).push(no_btn);

@@ -1,38 +1,52 @@
-use iced::widget::button::{Status, Style};
-use iced::{Background, Border, Color, Shadow, Theme};
+use iced::Background;
+use iced::Border;
+use iced::Color;
+use iced::Shadow;
+use iced::Theme;
+use iced::widget::Button;
+use iced::widget::button::Status;
+use iced::widget::button::Style;
 
-#[derive(Debug, Clone, Copy)]
-pub enum ButtonStyle {
-    Default,
-    Custom,
-    CustomRounded,
-    Blank,
-    Thumb,
-    BlankBorder,
-    Danger,
-    ThumbSingleStatic,
-    RedColorStatic,
-    Manual(fn(&Theme, Status) -> Style),
+pub trait CustomStyle<'a, M> {
+    fn custom_style(self, style: ButtonThemeStyle) -> Self;
 }
 
-impl ButtonStyle {
+impl<'a, M: Clone + 'static> CustomStyle<'a, M> for Button<'a, M> {
+    fn custom_style(self, style: ButtonThemeStyle) -> Self {
+        self.style(move |theme: &Theme, status: Status| style.style(theme, status))
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum ButtonThemeStyle {
+    Default,
+    CustomRounded,
+    Blank,
+    BlankBorder,
+    Danger,
+    Custom,
+    Thumb,
+    ThumbSingleStatic,
+    RedColorStatic,
+}
+
+impl ButtonThemeStyle {
     pub fn style(self, theme: &Theme, status: Status) -> Style {
         match self {
             Self::Default => default_style(theme, status),
-            Self::Custom => custom_btn_style(theme, status),
             Self::CustomRounded => custom_btn_rounded_style(theme, status),
             Self::Blank => blank_btn_style(theme, status),
-            Self::Thumb => thumb_style(theme, status),
             Self::BlankBorder => blank_border_style(theme, status),
             Self::Danger => danger_style(theme, status),
+            Self::Custom => custom_btn_style(theme, status),
+            Self::Thumb => thumb_style(theme, status),
             Self::ThumbSingleStatic => thumb_single_static(theme, status),
             Self::RedColorStatic => red_color_static(theme, status),
-            Self::Manual(f) => f(theme, status),
         }
     }
 }
 
-pub fn default_style(_theme: &iced::Theme, status: Status) -> Style {
+fn default_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: Some(Background::Color(Color::from_rgb8(50, 50, 250))),
@@ -65,7 +79,7 @@ pub fn default_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
+fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: Some(Background::Color(Color::from_rgb8(70, 70, 70))),
@@ -98,7 +112,7 @@ pub fn custom_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
+fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
     let border = Border {
         color: Color::from_rgb8(200, 200, 200),
         width: 0.3,
@@ -136,7 +150,7 @@ pub fn custom_btn_rounded_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn blank_btn_style(_theme: &iced::Theme, status: Status) -> Style {
+fn blank_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: None,
@@ -169,7 +183,7 @@ pub fn blank_btn_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn thumb_style(_theme: &iced::Theme, status: Status) -> Style {
+fn thumb_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Pressed => Style {
             background: None,
@@ -213,7 +227,8 @@ pub fn thumb_style(_theme: &iced::Theme, status: Status) -> Style {
         },
     }
 }
-pub fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
+
+fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Active => Style {
             background: None,
@@ -275,7 +290,7 @@ pub fn blank_border_style(_theme: &iced::Theme, status: Status) -> Style {
     }
 }
 
-pub fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
+fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
     match status {
         Status::Active => Style {
             background: Some(Background::Color(Color::from_rgb8(220, 50, 47))),
@@ -329,7 +344,7 @@ pub fn danger_style(_theme: &iced::Theme, status: Status) -> Style {
 
 // =====Static variant===========
 
-pub fn thumb_single_static(_theme: &iced::Theme, _status: Status) -> Style {
+fn thumb_single_static(_theme: &iced::Theme, _status: Status) -> Style {
     Style {
         background: None,
         text_color: Color::WHITE,
@@ -343,7 +358,7 @@ pub fn thumb_single_static(_theme: &iced::Theme, _status: Status) -> Style {
     }
 }
 
-pub fn red_color_static(_theme: &iced::Theme, _status: Status) -> Style {
+fn red_color_static(_theme: &iced::Theme, _status: Status) -> Style {
     Style {
         background: Some(Color::from_rgb8(220, 50, 47).into()),
         text_color: Color::WHITE,
