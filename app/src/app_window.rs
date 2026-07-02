@@ -126,7 +126,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                 .cell(cell_path)
                 .width(Length::Fill)
                 .padding(5)
-                .style(|i, _theme| {
+                .style(|i, _id, _theme| {
                     let color = if i % 2 == 0 {
                         Color::from_rgb8(32, 36, 42)
                     } else {

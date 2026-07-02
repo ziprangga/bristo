@@ -7,10 +7,12 @@ use iced::{Length, Padding, alignment};
 
 use crate::table::cell::Cell;
 
-type ContentCellStyleFn = dyn Fn(usize, &Theme) -> container::Style;
+pub type ContentCellId = Id;
+type ContentCellStyleFn = dyn Fn(usize, Option<&ContentCellId>, &Theme) -> container::Style;
 
 pub struct ContentCell<M> {
     cells: Vec<Cell<M>>,
+    id: Option<ContentCellId>,
     width: Option<Length>,
     height: Option<Length>,
     align_x: Option<alignment::Horizontal>,
@@ -24,6 +26,7 @@ impl<M: Clone + 'static> ContentCell<M> {
     pub fn new() -> Self {
         Self {
             cells: Vec::new(),
+            id: None,
             width: None,
             height: None,
             align_x: None,
@@ -68,6 +71,15 @@ impl<M: Clone + 'static> ContentCell<M> {
         self
     }
 
+    pub fn id(mut self, id: impl Into<Id>) -> Self {
+        self.id = Some(id.into());
+        self
+    }
+
+    pub fn get_id(&self) -> Option<&Id> {
+        self.id.as_ref()
+    }
+
     pub fn width(mut self, width: Length) -> Self {
         self.width = Some(width);
         self
@@ -100,24 +112,33 @@ impl<M: Clone + 'static> ContentCell<M> {
 
     pub fn style<F>(mut self, f: F) -> Self
     where
-        F: Fn(usize, &Theme) -> container::Style + 'static,
+        F: Fn(usize, Option<&ContentCellId>, &Theme) -> container::Style + 'static,
     {
         self.style_fn = Some(Box::new(f));
         self
     }
 
     pub fn build(self, index: usize) -> Element<'static, M> {
-        let mut row = Row::new();
+        let content_cell_id = self.id.clone();
+        let padding = self.padding;
+        let style_fn = self.style_fn;
+
+        let mut cell_content = Row::new();
 
         if let Some(spacing) = self.spacing {
-            row = row.spacing(spacing as f32);
+            cell_content = cell_content.spacing(spacing as f32);
         }
 
-        for cell in self.cells {
-            row = row.push(cell.build());
+        for (i, cell) in self.cells.into_iter().enumerate() {
+            let content_element: Element<'static, M> = cell.build(i);
+            cell_content = cell_content.push(content_element);
         }
 
-        let mut container = Container::new(row);
+        let mut container = Container::new(cell_content);
+
+        if let Some(ref id) = content_cell_id {
+            container = container.id(id.clone());
+        }
 
         if let Some(w) = self.width {
             container = container.width(w);
@@ -134,12 +155,13 @@ impl<M: Clone + 'static> ContentCell<M> {
             container = container.align_y(y);
         }
 
-        if let Some(p) = self.padding {
+        if let Some(p) = padding {
             container = container.padding(p);
         }
 
-        if let Some(style_fn) = self.style_fn {
-            container = container.style(move |theme| style_fn(index, theme));
+        if let Some(style_fn) = style_fn {
+            container =
+                container.style(move |theme| style_fn(index, content_cell_id.as_ref(), theme));
         }
 
         container.into()

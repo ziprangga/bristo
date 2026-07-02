@@ -107,17 +107,18 @@ impl<M: Clone + 'static> HeaderCell<M> {
     }
 
     pub fn build(self) -> Element<'static, M> {
-        let mut row = Row::new();
+        let mut cell_content = Row::new();
 
         if let Some(spacing) = self.spacing {
-            row = row.spacing(spacing as f32);
+            cell_content = cell_content.spacing(spacing as f32);
         }
 
-        for cell in self.cells {
-            row = row.push(cell.build());
+        for (i, cell) in self.cells.into_iter().enumerate() {
+            let content_element: Element<'static, M> = cell.build(i);
+            cell_content = cell_content.push(content_element);
         }
 
-        let mut container = Container::new(row);
+        let mut container = Container::new(cell_content);
 
         if let Some(w) = self.width {
             container = container.width(w);

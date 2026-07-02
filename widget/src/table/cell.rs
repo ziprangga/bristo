@@ -3,12 +3,11 @@ use iced::widget::{Container, container};
 use iced::{Element, Length, Padding, Theme, alignment};
 
 pub type CellId = Id;
-type CellStyleFn = dyn Fn(&CellId, bool, &Theme) -> container::Style;
+type CellStyleFn = dyn Fn(usize, Option<&CellId>, &Theme) -> container::Style;
 
 pub struct Cell<M> {
     content: Element<'static, M>,
     id: Option<CellId>,
-    selected: Option<CellId>,
     width: Option<Length>,
     height: Option<Length>,
     align_x: Option<alignment::Horizontal>,
@@ -22,7 +21,6 @@ impl<M: Clone + 'static> Cell<M> {
         Self {
             content: content.into(),
             id: None,
-            selected: None,
             width: None,
             height: None,
             align_x: None,
@@ -44,18 +42,6 @@ impl<M: Clone + 'static> Cell<M> {
 
     pub fn get_id(&self) -> Option<&CellId> {
         self.id.as_ref()
-    }
-
-    pub fn selected(mut self, id: Option<CellId>) -> Self {
-        self.selected = id;
-        self
-    }
-
-    pub fn is_selected(&self, target_id: &CellId) -> bool {
-        match &self.id {
-            Some(current_id) => current_id == target_id,
-            None => false,
-        }
     }
 
     pub fn width(mut self, width: Length) -> Self {
@@ -85,18 +71,22 @@ impl<M: Clone + 'static> Cell<M> {
 
     pub fn style_fn<F>(mut self, f: F) -> Self
     where
-        F: Fn(&CellId, bool, &Theme) -> container::Style + 'static,
+        F: Fn(usize, Option<&CellId>, &Theme) -> container::Style + 'static,
     {
         self.style_fn = Some(Box::new(f));
         self
     }
 
-    pub fn build(self) -> Element<'static, M> {
+    pub fn build(self, index: usize) -> Element<'static, M> {
+        let cell_id = self.id.clone();
+        let padding = self.padding;
+        let style_fn = self.style_fn;
+
         let mut container = Container::new(self.content);
 
-        let cell_id = self.id.unwrap_or_else(CellId::unique);
-
-        container = container.id(cell_id.clone());
+        if let Some(ref cell_id) = self.id {
+            container = container.id(cell_id.clone());
+        }
 
         if let Some(w) = self.width {
             container = container.width(w);
@@ -114,16 +104,12 @@ impl<M: Clone + 'static> Cell<M> {
             container = container.align_y(align_y);
         }
 
-        if let Some(p) = self.padding {
+        if let Some(p) = padding {
             container = container.padding(p)
         }
 
-        if let Some(style_fn) = self.style_fn {
-            // let cell_id = self.id;
-            // let selected = self.selected == Some(cell_id);
-            let selected = Some(cell_id.clone()) == self.selected;
-            let closure_id = cell_id.clone();
-            container = container.style(move |theme| style_fn(&closure_id, selected, theme));
+        if let Some(style_fn) = style_fn {
+            container = container.style(move |theme| style_fn(index, cell_id.as_ref(), theme));
         }
 
         container.into()
