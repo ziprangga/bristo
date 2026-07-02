@@ -91,7 +91,7 @@ impl AppState {
     }
 
     pub fn get_cached_icon(&self, path: &Path) -> Option<image::Handle> {
-        // Call the backend source of truth directly! No more double code.
+        // Call the backend source of truth directly
         let cache_key = IconCache::get_cache_key(path);
 
         self.icon_cache.get(&cache_key).cloned()
@@ -107,7 +107,7 @@ impl AppState {
                 rgba_bytes, // Consumes the inner Vec<u8> directly
             );
 
-            // Store it in your AppState frontend cache
+            // Store it in the AppState icon cache
             self.icon_cache.insert(key, ui_handle);
         }
         // At this point, the `backend` variable goes out of scope and is completely dropped,

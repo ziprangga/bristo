@@ -165,7 +165,6 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         .contents(contents)
         .padding(5)
         .width(Length::Fill)
-        // .content_selected(state.selected_file)
         .build();
 
     let center_view = if !has_real_items {

@@ -52,7 +52,7 @@ impl ModalAsk {
             .align_x(alignment::Horizontal::Center)
             .align_y(alignment::Vertical::Center);
 
-        // // Yes button
+        // Yes button
         let yes_btn = CustomButton::new()
             .content_element(iced::widget::text("Yes").size(12))
             .width(Length::Fill)

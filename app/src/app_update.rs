@@ -185,12 +185,11 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             let mut tasks = Vec::new();
 
             for (_i, entry) in state.cleaner.all_entries_enumerate() {
-                // Fix: Use the actual entry path loop item, not 'app_input'
                 let path_buf = entry.as_path().to_path_buf();
 
                 // Build the asynchronous background generator task blueprint
                 let task = Task::perform(get_icon_asset_async(path_buf, 64.0), |res| match res {
-                    // Fix: Send a dedicated IconLoaded message to prevent infinite loops
+                    // Send a dedicated IconLoaded message to prevent infinite loops
                     Ok(backend_cache) => AppMessage::IconLoaded(backend_cache),
                     Err(err) => {
                         let event = status!(stage: "Failed", message: err.to_string(),);
@@ -206,7 +205,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 stage: "Completed",
                 message: format!("{} items found", founded),
             );
-            // Task::done(AppMessage::ShowStatus(event))
             tasks.push(Task::done(AppMessage::ShowStatus(event)));
             Task::batch(tasks)
         }
