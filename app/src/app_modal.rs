@@ -53,16 +53,26 @@ impl ModalAsk {
             .align_y(alignment::Vertical::Center);
 
         // Yes button
-        let yes_btn = button(text("Yes").size(12))
-            .width(Length::Fill)
-            .custom_style(ButtonThemeStyle::Danger)
-            .on_press(ModalAskMessage::ConfirmMsg(true));
+        let yes_btn = button(
+            text("Yes")
+                .size(12)
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center),
+        )
+        .width(Length::Fill)
+        .custom_style(ButtonThemeStyle::Danger)
+        .on_press(ModalAskMessage::ConfirmMsg(true));
 
         // No button
-        let no_btn = button(text("No").size(12))
-            .width(Length::Fill)
-            .custom_style(ButtonThemeStyle::BlankBorder)
-            .on_press(ModalAskMessage::ConfirmMsg(false));
+        let no_btn = button(
+            text("No")
+                .size(12)
+                .align_x(alignment::Horizontal::Center)
+                .align_y(alignment::Vertical::Center),
+        )
+        .width(Length::Fill)
+        .custom_style(ButtonThemeStyle::BlankBorder)
+        .on_press(ModalAskMessage::ConfirmMsg(false));
 
         // buttons row
         let buttons_row = Row::new().spacing(10).push(yes_btn).push(no_btn);
