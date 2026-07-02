@@ -59,7 +59,7 @@ impl ModalAsk {
             .on_press(ModalAskMessage::ConfirmMsg(true));
 
         // No button
-        let no_btn = button(text("Yes").size(12))
+        let no_btn = button(text("No").size(12))
             .width(Length::Fill)
             .custom_style(ButtonThemeStyle::BlankBorder)
             .on_press(ModalAskMessage::ConfirmMsg(false));
