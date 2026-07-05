@@ -40,12 +40,11 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         AppMessage::ProcessApp(app_path) => {
             state.app_path = app_path.clone();
             let channel = create_channels(100, ChannelKind::Mpsc);
+            let emitter = channel.get_emitter();
             let add_app = {
-                let channel_cln = channel.clone();
                 let path_input = state.app_path.clone();
                 Task::perform(
                     async move {
-                        let emitter = channel_cln.get_emitter();
                         let result = process_app(path_input, emitter).await;
                         match result {
                             Ok(cleaner) => AppMessage::FindProcs(Ok(cleaner)),
