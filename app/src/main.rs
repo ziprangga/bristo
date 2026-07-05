@@ -13,7 +13,7 @@ use iced::{Size, Task, application, window};
 use mini_logger::debug;
 
 fn init() -> (AppState, Task<AppMessage>) {
-    let app_state = AppState::new(100);
+    let app_state = AppState::new();
     (app_state, Task::none())
 }
 

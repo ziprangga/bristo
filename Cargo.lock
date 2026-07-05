@@ -1806,8 +1806,8 @@ dependencies = [
 
 [[package]]
 name = "mini-logger"
-version = "0.1.1"
-source = "git+https://github.com/ziprangga/mini-logger.git?tag=v0.1.1#ea59bf77f8e069149051b2247770b27cfa24708b"
+version = "0.1.2"
+source = "git+https://github.com/ziprangga/mini-logger.git?tag=v0.1.2#c30a438ceafe58955b4cd83eefba92e3a21a93b5"
 dependencies = [
  "chrono",
 ]
@@ -2916,8 +2916,8 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
 name = "simple-status"
-version = "0.1.5"
-source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.5#515c05774d1bb27ca70008eb48118ef997531d05"
+version = "0.1.7"
+source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.7#77b3d0d5e9bab5b528593d5314dc347d1d9f1746"
 dependencies = [
  "futures",
  "tokio",

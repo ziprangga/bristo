@@ -12,9 +12,10 @@ use crate::app_task::set_output_path;
 use crate::app_task::trash_app_async;
 
 use cleaner::TrashStatus;
-use iced::{Event, Subscription, Task, futures::StreamExt, window};
+use iced::{Subscription, Task, futures::StreamExt};
 use mini_logger::debug;
 use simple_status::status;
+use simple_status::{ChannelKind, create_channels};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -38,12 +39,13 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::ProcessApp(app_path) => {
             state.app_path = app_path.clone();
+            let channel = create_channels(100, ChannelKind::Mpsc);
             let add_app = {
-                let channel = state.channel.clone();
+                let channel_cln = channel.clone();
                 let path_input = state.app_path.clone();
                 Task::perform(
                     async move {
-                        let emitter = channel.get_emitter();
+                        let emitter = channel_cln.get_emitter();
                         let result = process_app(path_input, emitter).await;
                         match result {
                             Ok(cleaner) => AppMessage::FindProcs(Ok(cleaner)),
@@ -58,8 +60,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 )
             };
 
-            let status_task = state
-                .channel
+            let status_task = channel
                 .stream()
                 .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
                 .unwrap_or_else(Task::none);
@@ -68,8 +69,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         }
 
         AppMessage::FindProcs(result) => {
+            let channel = create_channels(100, ChannelKind::Mpsc);
             if let Ok(cleaner) = result {
-                let emitter = state.channel.get_emitter();
+                let emitter = channel.get_emitter();
 
                 let find_task =
                     Task::perform(find_app_process_async(cleaner, emitter), |res| match res {
@@ -86,8 +88,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         }
                     });
 
-                let progress_task = state
-                    .channel
+                let progress_task = channel
                     .stream()
                     .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
                     .unwrap_or_else(Task::none);
@@ -124,13 +125,14 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 state
                     .show_modal_ask
                     .update(ModalAskMessage::ConfirmMsg(answer));
+                let channel = create_channels(100, ChannelKind::Mpsc);
 
                 let cleaner = state.pending_cleaner.take().unwrap();
                 if !answer {
                     return Task::done(AppMessage::ScanApp(Ok(cleaner)));
                 }
 
-                let emitter = state.channel.get_emitter();
+                let emitter = channel.get_emitter();
                 let cleaner_arc = Arc::new(cleaner);
 
                 let confirm_task = Task::perform(
@@ -143,8 +145,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     },
                 );
 
-                let status_task = state
-                    .channel
+                let status_task = channel
                     .stream()
                     .map(|s| {
                         Task::stream(s.map(|status_event| AppMessage::ShowStatus(status_event)))
@@ -156,8 +157,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         },
 
         AppMessage::ScanApp(cleaner) => {
+            let channel = create_channels(100, ChannelKind::Mpsc);
             if let Ok(app_input) = cleaner {
-                let emitter = state.channel.get_emitter();
+                let emitter = channel.get_emitter();
 
                 let scan_task =
                     Task::perform(scan_app_async(app_input, emitter), |res| match res {
@@ -168,8 +170,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         }
                     });
 
-                let progress_task = state
-                    .channel
+                let progress_task = channel
                     .stream()
                     .map(|s| Task::stream(s.map(AppMessage::ShowStatus)))
                     .unwrap_or_else(Task::none);
@@ -361,8 +362,20 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 }
 
 pub fn subscription(_state: &AppState) -> Subscription<AppMessage> {
-    iced::event::listen().map(|event| match event {
-        Event::Window(window::Event::FileDropped(path)) => AppMessage::DropApp(path),
+    // iced::event::listen().map(|event| match event {
+    //     Event::Window(window::Event::FileDropped(path)) => AppMessage::DropApp(path),
+    //     _ => AppMessage::NoOperations,
+    // })
+    let file_drop_sub = iced::event::listen().map(|event| match event {
+        iced::Event::Window(iced::window::Event::FileDropped(path)) => AppMessage::DropApp(path),
         _ => AppMessage::NoOperations,
-    })
+    });
+
+    // let status = if let Some(stream) = simple_status::stream() {
+    //     Subscription::run(stream.map(AppMessage::ShowStatus))
+    // } else {
+    //     Subscription::none()
+    // };
+
+    Subscription::batch(vec![file_drop_sub])
 }

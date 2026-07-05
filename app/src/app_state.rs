@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
 use cleaner::TrashEntry;
-use simple_status::{ChannelKind, Channels, Status, init_channels};
+use simple_status::Status;
 
 // ========
 
@@ -46,8 +46,6 @@ pub enum AppMessage {
 pub struct AppState {
     pub app_path: PathBuf,
     pub show_status: Status,
-    pub channel: Channels,
-
     pub cleaner: Cleaner,
     pub selected_file: Option<usize>,
     pub show_modal_ask: ModalAsk,
@@ -57,14 +55,11 @@ pub struct AppState {
 }
 
 impl AppState {
-    pub fn new(buffer: usize) -> Self {
+    pub fn new() -> Self {
         let app_path = PathBuf::new();
         let show_status = Status::default();
-        let channel = init_channels(buffer, ChannelKind::Broadcast);
-
         let cleaner = Cleaner::default();
         let selected_file = None;
-
         let show_modal_ask = ModalAsk::default();
         let pending_cleaner = None;
 
@@ -73,7 +68,6 @@ impl AppState {
         Self {
             app_path,
             show_status,
-            channel,
             cleaner,
             selected_file,
             show_modal_ask,
