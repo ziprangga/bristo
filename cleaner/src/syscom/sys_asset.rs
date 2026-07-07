@@ -1,9 +1,52 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Doc:
+//! Native macOS icon and image utilities.
+//!
+//! Provides helpers for retrieving system icons and converting
+//! Cocoa image types into raw pixel buffers suitable for Rust UI
+//! frameworks.
+//!
+//! Supported icon sources include:
+//!
+//! - Installed applications.
+//! - System folders.
+//! - Generic file types.
+//!
+//! Note:
+//! These helpers are primarily consumed by `IconCache`.
+//!..
+
 use objc2::AnyThread;
 use objc2::rc::Retained;
 use objc2_app_kit::{NSBitmapImageRep, NSGraphicsContext, NSImage, NSWorkspace};
 use objc2_foundation::{NSAutoreleasePool, NSPoint, NSRect, NSSize, NSString};
 use objc2_uniform_type_identifiers::{UTTypeFolder, UTTypeItem};
 
+/// Returns the system folder icon.
+///
+/// Doc:
+/// Retrieves the default folder icon provided by macOS.
+///
+/// The returned icon corresponds to the system-defined
+/// representation of a generic folder.
+///
+/// Note:
+/// The returned image is owned through Objective-C reference
+/// counting and can be safely passed to image conversion
+/// utilities.
 pub fn get_default_folder_icon() -> Retained<NSImage> {
     let pool = unsafe { NSAutoreleasePool::new() };
     let result = {
@@ -16,6 +59,15 @@ pub fn get_default_folder_icon() -> Retained<NSImage> {
     result
 }
 
+/// Returns the system generic file icon.
+///
+/// Doc:
+/// Retrieves the default icon used by macOS when no
+/// application-specific icon is available.
+///
+/// Note:
+/// This icon is shared across generic file types and serves as
+/// a fallback representation.
 pub fn get_default_file_icon() -> Retained<NSImage> {
     let pool = unsafe { NSAutoreleasePool::new() };
 
@@ -28,7 +80,23 @@ pub fn get_default_file_icon() -> Retained<NSImage> {
     result
 }
 
-/// Fetch installed app icons SAFELY using built-in methods
+/// Retrieves an application's icon.
+///
+/// Doc:
+/// Returns the icon associated with an installed application
+/// bundle.
+///
+/// The icon is resolved using the same mechanisms employed by
+/// Finder and Launch Services.
+///
+/// Design:
+/// Icon lookup is delegated to `NSWorkspace` so the operating
+/// system can select the correct icon resource and resolution.
+///
+/// This avoids manually parsing application bundle resources.
+///
+/// Note:
+/// The provided path should reference an application bundle.
 pub fn get_installed_app_icon_by_path(app_path: &str) -> Retained<NSImage> {
     let pool = unsafe { NSAutoreleasePool::new() };
 
@@ -43,6 +111,39 @@ pub fn get_installed_app_icon_by_path(app_path: &str) -> Retained<NSImage> {
     result
 }
 
+/// Converts an `NSImage` into RGBA pixel data.
+///
+/// Doc:
+/// Renders an `NSImage` into a fixed-size bitmap and returns:
+///
+/// - Width.
+/// - Height.
+/// - RGBA bytes.
+///
+/// The resulting pixel buffer can be used by Rust UI
+/// frameworks and image-processing code.
+///
+/// Design:
+/// macOS icons are often lazily rendered and may contain
+/// multiple embedded resolutions.
+///
+/// Rather than reading bitmap representations directly, a new
+/// offscreen bitmap buffer is created and the image is asked to
+/// render itself into that buffer.
+///
+/// This ensures:
+///
+/// - Consistent dimensions.
+/// - Predictable RGBA output.
+/// - Correct scaling behavior.
+/// - Elimination of uninitialized backing storage.
+///
+/// The operating system automatically selects the most
+/// appropriate icon representation during rendering.
+///
+/// Note:
+/// The returned pixel data is tightly packed RGBA with
+/// 8 bits per channel.
 pub fn ns_image_to_rgba_bytes(
     image: &NSImage,
     target_size: f64,

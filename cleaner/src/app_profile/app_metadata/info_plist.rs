@@ -1,3 +1,47 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Parsed application identity information.
+//!
+//! Doc:
+//! Stores the subset of `Info.plist` values required by the
+//! scanning and cleanup system.
+//!
+//! Captured values include:
+//!
+//! - Application display name.
+//! - Bundle identifier.
+//! - Executable name.
+//! - Organization identifier.
+//!
+//! These values are later used to construct matching rules
+//! for locating files, processes, containers, and receipts.
+//!
+//! Example:
+//!
+//! ```text
+//! Name: Safari
+//! Bundle ID: com.apple.Safari
+//! Executable: Safari
+//! Organization: apple
+//! ```
+//!
+//! Note:
+//! This type intentionally stores only the fields currently
+//! required by the application scanner.
+//!..
+
 use anyhow::{Context, Result, anyhow};
 use plist::Value;
 use std::path::Path;
@@ -24,6 +68,49 @@ impl InfoPlist {
             organization,
         }
     }
+
+    /// Parses application information from an Info.plist file.
+    ///
+    /// Doc:
+    /// Reads a plist file and extracts the metadata required by
+    /// the scanning system.
+    ///
+    /// Required fields:
+    ///
+    /// - `CFBundleIdentifier`
+    /// - `CFBundleExecutable`
+    ///
+    /// Application name is resolved using:
+    ///
+    /// 1. `CFBundleDisplayName`
+    /// 2. Application bundle filename
+    ///
+    /// The organization value is derived from the bundle
+    /// identifier.
+    ///
+    /// Design:
+    ///
+    /// This value is used as an additional matching signal when
+    /// searching for associated files.
+    ///
+    /// Example:
+    ///
+    ///     com.apple.Safari      -> apple
+    ///     com.google.Chrome    -> google
+    ///     org.mozilla.firefox  -> mozilla
+    ///
+    /// ```text
+    /// com.apple.Safari
+    ///     └── apple
+    /// ```
+    ///
+    /// Returns an error when required fields are missing or the
+    /// plist structure is invalid.
+    ///
+    /// Note:
+    /// Only a subset of available plist fields is parsed because
+    /// the scanner requires application identity rather than
+    /// complete bundle metadata.
     pub fn from_plist(plist_path: &Path, app_path: &Path) -> Result<Self> {
         let plist = Value::from_file(plist_path)
             .with_context(|| format!("Failed to read plist: {}", plist_path.display()))?;

@@ -1,3 +1,68 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Doc:
+//! Core application cleanup and uninstall orchestration.
+//!
+//! This crate provides the high-level API used to inspect, analyze,
+//! and remove macOS applications together with their associated files.
+//!
+//! The crate is built around three primary responsibilities:
+//!
+//! - `AppProfile` stores all discovered application information.
+//! - `Cleaner` orchestrates scanning and removal operations.
+//! - `IconCache` provides cached macOS icon assets for UI rendering.
+//!
+//! The cleanup workflow generally follows:
+//!
+//! 1. Build an `AppProfile` from an application path.
+//! 2. Discover running processes.
+//! 3. Locate package receipts and BOM logs.
+//! 4. Locate associated files.
+//! 5. Locate BTM (Background Task Management) files.
+//! 6. Optionally terminate running processes.
+//! 7. Move discovered files to Trash.
+//!
+//! The module intentionally separates discovery, state management,
+//! and system interaction:
+//!
+//! - `AppProfile` owns discovered application state.
+//! - `Cleaner` coordinates cleanup operations.
+//! - `syscom` performs platform-specific system calls.
+//!
+//! Associated file discovery is divided into multiple categories:
+//!
+//! - Application bundle paths.
+//! - Associated files (`AscFiles`).
+//! - Background task management files (`BtmFiles`).
+//! - Package receipt and BOM metadata.
+//!
+//! Failed cleanup operations are represented by `TrashEntry`,
+//! allowing callers to inspect which files could not be removed
+//! and why.
+//!
+//! The module is designed so both CLI and GUI frontends can share
+//! the same scanning and cleanup logic while providing their own
+//! presentation layer.
+//!
+//! Note:
+//! Most applications should interact primarily with `Cleaner`.
+//! Lower-level types such as `AppProfile`, scanning modules,
+//! and platform-specific helpers exist to organize implementation
+//! details and support advanced use cases.
+//!..
+
 mod app_profile;
 mod locations_scan;
 mod rules;
@@ -19,12 +84,50 @@ use simple_status::{Emitter, status_emit};
 use std::collections::HashMap;
 use std::path::Path;
 
+/// Result classification for a trash operation.
+///
+/// Doc:
+/// Represents the outcome of a file removal attempt.
+///
+/// Variants:
+///
+/// - `Failed` indicates a removal operation was attempted
+///   but did not succeed.
+/// - `Skipped` indicates the operation was intentionally
+///   not executed.
+///
+/// Note:
+/// Successful removals are not represented because
+/// `trash_all_entry()` only returns entries requiring
+/// additional attention from the caller.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum TrashStatus {
     Failed,
     Skipped,
 }
 
+/// Describes a file that could not be removed.
+///
+/// Doc:
+/// Contains information about a failed or skipped cleanup
+/// operation.
+///
+/// A `TrashEntry` stores:
+///
+/// - The resulting `TrashStatus`.
+/// - The affected `FileEntry`.
+/// - An optional human-readable reason.
+///
+/// Examples:
+///
+/// - Permission denied.
+/// - File is currently in use.
+/// - Application removal skipped because associated
+///   files failed.
+///
+/// Note:
+/// These entries are primarily intended for user-facing
+/// reporting and cleanup diagnostics.
 #[derive(Debug, Clone)]
 pub struct TrashEntry {
     status: TrashStatus,
@@ -74,6 +177,47 @@ impl TrashEntry {
     }
 }
 
+/// Application cleanup coordinator.
+///
+/// Doc:
+/// `Cleaner` is the primary entry point for application scanning,
+/// inspection, and removal.
+///
+/// A `Cleaner` owns a single `AppProfile` and provides operations
+/// for:
+///
+/// - Process discovery.
+/// - Process termination.
+/// - Receipt scanning.
+/// - Associated file discovery.
+/// - BTM file discovery.
+/// - BOM log export.
+/// - Trash operations.
+///
+/// Typical workflow:
+///
+/// ```text
+/// Application Path
+///       │
+///       ▼
+/// Cleaner::new_profile()
+///       │
+///       ▼
+/// find_app_process()
+///       │
+///       ▼
+/// scan_app_profile()
+///       │
+///       ├─ save_bom_logs()
+///       ├─ print_summary()
+///       ├─ trash_all_entry()
+///       └─ reset()
+/// ```
+///
+/// Note:
+/// `Cleaner` acts as an orchestration layer and delegates
+/// platform-specific operations to `syscom` while storing
+/// discovered state inside `AppProfile`.
 #[derive(Debug, Default, Clone)]
 pub struct Cleaner {
     app_profile: AppProfile,
@@ -386,7 +530,34 @@ impl Cleaner {
     }
 }
 
-// Asset from Mac for UI
+/// Cached icon storage for UI consumers.
+///
+/// Doc:
+/// Stores platform-generated icon images as raw RGBA buffers
+/// keyed by file type or application path.
+///
+/// Supported icon categories:
+///
+/// - Application bundles (`*.app`).
+/// - System folder icons.
+/// - Generic file icons.
+///
+/// The cache stores:
+///
+/// - Width.
+/// - Height.
+/// - RGBA pixel data.
+///
+/// Consumers can retrieve icon data as:
+///
+/// - Borrowed RGBA slices.
+/// - Owned RGBA buffers.
+/// - Generated RGB buffers.
+///
+/// Note:
+/// Icon generation may require platform-specific system APIs.
+/// This type exists separately from `Cleaner` so that UI-related
+/// functionality remains independent from application cleanup logic.
 #[derive(Debug, Clone)]
 pub struct IconCache {
     icon_cache: HashMap<String, (usize, usize, Vec<u8>)>,

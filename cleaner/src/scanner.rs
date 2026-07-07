@@ -1,3 +1,58 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Doc:
+//! Generic filesystem scanning utilities.
+//!
+//! This module provides the low-level scanning primitives used
+//! throughout the application.
+//!
+//! The scanning system is responsible for:
+//!
+//! - Traversing filesystem locations.
+//! - Applying application matching rules.
+//! - Building typed scan results.
+//! - Reporting scan progress.
+//! - Normalizing and deduplicating results.
+//!
+//! Design:
+//! Scanning responsibilities are intentionally separated into
+//! three stages:
+//!
+//! - Discovery (`scan_general`, `scan_container`).
+//! - Matching (caller-provided predicates).
+//! - Result normalization (`construct_scanner_result`).
+//!
+//! This separation allows scanners to reuse the same traversal
+//! infrastructure while applying different matching rules and
+//! result types.
+//!
+//! Two scanning strategies are provided:
+//!
+//! - General filesystem traversal.
+//! - Sandbox container discovery.
+//!
+//! Sandbox containers require specialized handling because
+//! application identifiers are often stored inside container
+//! metadata rather than directly in the container directory
+//! name.
+//!
+//! Note:
+//! This module is intentionally generic and does not contain
+//! application-specific matching logic.
+//!..
+
 use rayon::prelude::*;
 use std::collections::HashSet;
 use std::path::Path;
@@ -7,6 +62,9 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use walkdir::WalkDir;
 
 /// Post-process scanner results.
+///
+/// Doc:
+/// Normalizes scanner output into a stable result set.
 ///
 /// Capabilities:
 /// - Sorts paths by depth (parent directories first).
@@ -19,13 +77,33 @@ use walkdir::WalkDir;
 ///   Example:
 ///     General scan + Sandbox container scan.
 /// - Removes duplicate paths after merging.
-/// - Returns a clean, deduplicated result set.
+/// - Produces a clean final result.
 ///
 /// Typical usage:
 /// - Associate scan results
 /// - BTM scan results
 /// - Receipt scan results
 /// - Any scanner that may produce overlapping paths
+///
+/// Design:
+/// Parent directories are preferred over child paths.
+///
+/// For example:
+///
+/// ```text
+/// /Library/Application Support/MyApp
+/// /Library/Application Support/MyApp/cache
+/// ```
+///
+/// Keeping both entries would create redundant cleanup targets.
+/// Retaining only the parent path allows removal operations to
+/// act on the highest meaningful filesystem boundary.
+///
+/// This behavior also prevents duplicate reporting when
+/// multiple scanners discover files within the same directory.
+///
+/// Note:
+/// Parent-path filtering occurs before duplicate removal.
 pub fn construct_scanner_result<T, FPath>(
     mut results: Vec<T>,
     extra: Option<Vec<T>>,
@@ -59,6 +137,9 @@ where
 
 /// Generic filesystem scanner.
 ///
+/// Doc:
+/// This is the primary scanner for normal filesystem traversal.
+///
 /// Capabilities:
 /// - Parallel directory traversal using Rayon.
 /// - Recursive scanning using WalkDir.
@@ -86,7 +167,23 @@ where
 /// - Cache scan
 /// - Log scan
 ///
-/// This is the primary scanner for normal filesystem traversal.
+/// Design:
+///
+/// This scanner is optimized for conventional filesystem
+/// layouts where application ownership can be determined
+/// directly from filenames or directory names.
+///
+/// Traversal is performed in parallel using Rayon to improve
+/// performance across large directory trees.
+///
+/// Matching and result construction are delegated to caller
+/// supplied closures so the traversal engine remains reusable
+/// across different scanner types.
+///
+/// Note:
+/// Progress callbacks are invoked periodically rather than
+/// for every filesystem entry to reduce synchronization and
+/// callback overhead during large scans.
 pub fn scan_general<T, FProgress, FMatch, FBuild>(
     locations: &[PathBuf],
     max_depth: usize,
@@ -130,36 +227,29 @@ where
         .collect()
 }
 
-/// Generic filesystem scanner.
+/// Scans sandbox container directories.
 ///
-/// Capabilities:
-/// - Parallel directory traversal using Rayon.
-/// - Recursive scanning using WalkDir.
-/// - Configurable maximum depth.
-/// - Custom match logic through a closure.
-/// - Custom result construction through a closure.
-/// - Progress callback support.
-/// - Can return any output type.
+/// Doc:
+/// Searches sandbox containers for files associated with an
+/// application.
 ///
-/// Scan flow:
-///   Locations
-///       ↓
-///   WalkDir
-///       ↓
-///   Match Rules
-///       ↓
-///   Build Result
+/// Design:
+/// Sandbox containers require specialized scanning because
+/// application ownership is often represented by files stored
+/// inside the container rather than by the container directory
+/// name itself.
 ///
-/// Typical usage:
-/// - Application support file scan
-/// - LaunchAgent scan
-/// - LaunchDaemon scan
-/// - PrivilegedHelperTool scan
-/// - Receipt scan
-/// - Cache scan
-/// - Log scan
+/// Instead of recursively traversing the entire container,
+/// the scanner inspects a predefined set of known locations
+/// inside each container.
 ///
-/// This is the primary scanner for normal filesystem traversal.
+/// This significantly reduces filesystem traversal while
+/// still providing reliable application identification.
+///
+/// Note:
+/// Container scanning is intentionally separate from
+/// `scan_general()` because its discovery strategy differs
+/// substantially from normal filesystem traversal.
 pub fn scan_container<T, FMatch, FBuild>(
     locations: &[PathBuf],
     patterns: &[PathBuf],

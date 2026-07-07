@@ -1,3 +1,36 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Doc:
+//! System process, filesystem, and Finder integration helpers.
+//!
+//! Provides low-level wrappers around macOS APIs and Unix
+//! system calls used throughout the application.
+//!
+//! Responsibilities include:
+//!
+//! - Process termination.
+//! - Trash operations.
+//! - Finder integration.
+//! - User cache discovery.
+//! - User temporary directory discovery.
+//!
+//! Note:
+//! Most callers should access these helpers through higher-
+//! level abstractions such as `Cleaner`.
+//!..
+
 use anyhow::Result;
 use anyhow::anyhow;
 use std::ffi::CStr;
@@ -19,7 +52,24 @@ use libc::kill;
 pub const DARWIN_USER_CACHE_DIR: i32 = libc::_CS_DARWIN_USER_CACHE_DIR;
 pub const DARWIN_USER_TEMP_DIR: i32 = libc::_CS_DARWIN_USER_TEMP_DIR;
 
-/// System configuration path resolver (Safe libc buffer sizing)
+/// Resolves a system configuration path.
+///
+/// Doc:
+/// Retrieves a filesystem path from a libc `confstr` entry.
+///
+/// Design:
+/// Buffer sizing is performed using the standard two-step
+/// `confstr` pattern:
+///
+/// 1. Query required size.
+/// 2. Allocate exact storage.
+/// 3. Retrieve value.
+///
+/// This avoids fixed-size buffers and truncation risks.
+///
+/// Note:
+/// Returns `None` when the requested configuration value is
+/// unavailable.
 pub fn sysconf_path(name: i32) -> Option<PathBuf> {
     // get required buffer size
     let len = unsafe { confstr(name, std::ptr::null_mut(), 0) };
@@ -52,7 +102,20 @@ pub fn sysconf_path(name: i32) -> Option<PathBuf> {
     Some(PathBuf::from(OsStr::from_bytes(&trimmed_bytes[..end])))
 }
 
-/// Closes running system processes safely via PIDs
+/// Terminates one or more processes.
+///
+/// Doc:
+/// Sends `SIGTERM` to each provided process identifier.
+///
+/// Design:
+/// `SIGTERM` is used instead of stronger termination signals
+/// because it allows applications an opportunity to perform
+/// graceful shutdown and cleanup operations.
+///
+/// Failures are accumulated and returned as a single error.
+///
+/// Note:
+/// Processes that have already exited are ignored.
 pub fn kill_pids(pids: &str) -> Result<()> {
     // collect error
     let mut errors = Vec::new();
@@ -90,7 +153,28 @@ pub fn kill_pids(pids: &str) -> Result<()> {
     Ok(())
 }
 
-/// Trashes a collection of files using native Apple NSFileManager mechanisms
+/// Moves files to the macOS Trash.
+///
+/// Doc:
+/// Attempts to move each provided path into the user's Trash
+/// using native macOS filesystem APIs.
+///
+/// Design:
+/// File removal is delegated to `NSFileManager` rather than
+/// direct filesystem deletion.
+///
+/// This preserves standard macOS behavior:
+///
+/// - Files are recoverable.
+/// - Finder remains synchronized.
+/// - Trash metadata is maintained.
+/// - User expectations are respected.
+///
+/// The implementation intentionally avoids permanent deletion.
+///
+/// Note:
+/// The returned vector contains only failed operations and
+/// their associated reasons.
 pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, String)>> {
     let mut failed_paths = Vec::new();
 
@@ -143,6 +227,19 @@ pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Stri
     Ok(failed_paths)
 }
 
+/// Reveals a file in Finder.
+///
+/// Doc:
+/// Opens Finder and selects the specified filesystem item.
+///
+/// Design:
+/// Uses `NSWorkspace` so behavior matches the native
+/// "Reveal in Finder" experience provided by macOS
+/// applications.
+///
+/// Note:
+/// The target path must be representable as a valid UTF-8
+/// string.
 pub fn show_in_finder(path: &Path) -> Result<()> {
     let s = path
         .to_str()
