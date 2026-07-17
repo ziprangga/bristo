@@ -6,7 +6,7 @@ use std::path::PathBuf;
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
 use cleaner::TrashEntry;
-use simple_status::Status;
+use simple_status::StatusEvent;
 
 // ========
 
@@ -37,7 +37,7 @@ pub enum AppMessage {
     MoveToTrash,
     UpdateEntryFiles(Result<Vec<TrashEntry>, String>),
     ClearList,
-    ShowStatus(Status),
+    ShowStatus(StatusEvent),
 
     NoOperations,
 }
@@ -45,7 +45,7 @@ pub enum AppMessage {
 #[derive(Clone)]
 pub struct AppState {
     pub app_path: PathBuf,
-    pub show_status: Status,
+    pub show_status: StatusEvent,
     pub cleaner: Cleaner,
     pub selected_file: Option<usize>,
     pub show_modal_ask: ModalAsk,
@@ -57,7 +57,7 @@ pub struct AppState {
 impl AppState {
     pub fn new() -> Self {
         let app_path = PathBuf::new();
-        let show_status = Status::default();
+        let show_status = StatusEvent::default();
         let cleaner = Cleaner::default();
         let selected_file = None;
         let show_modal_ask = ModalAsk::default();
@@ -81,7 +81,7 @@ impl AppState {
         self.app_path.clear();
         self.cleaner.reset();
         self.selected_file = None;
-        self.show_status.reset_event();
+        self.show_status = StatusEvent::default();
         self.pending_cleaner = None;
     }
 

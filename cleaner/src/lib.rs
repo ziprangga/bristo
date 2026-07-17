@@ -232,11 +232,11 @@ impl Cleaner {
         &self.app_profile
     }
 
-    pub fn new_profile(path: &Path, status: Option<&Emitter>) -> Result<Self> {
+    pub fn new_profile(path: &Path, emitter: Option<&Emitter>) -> Result<Self> {
         let app_profile = AppProfile::from_path(path)?;
 
         status_emit!(
-            status,
+            emitter,
             "Scanning running processes for '{}'",
             app_profile.as_app_metadata().as_info().as_name()
         );
@@ -244,10 +244,10 @@ impl Cleaner {
         Ok(Self { app_profile })
     }
 
-    pub fn find_app_process(&mut self, status: Option<&Emitter>) -> Result<&Self> {
+    pub fn find_app_process(&mut self, emitter: Option<&Emitter>) -> Result<&Self> {
         self.app_profile.find_pid_and_command();
         status_emit!(
-            status,
+            emitter,
             "Found process {}",
             self.app_profile.as_app_procs().list().len()
         );
@@ -255,7 +255,7 @@ impl Cleaner {
         Ok(self)
     }
 
-    pub fn kill_app_process(&self, status: Option<&Emitter>) -> Result<()> {
+    pub fn kill_app_process(&self, emitter: Option<&Emitter>) -> Result<()> {
         let processes = self.app_profile.as_app_procs();
 
         if processes.is_empty() {
@@ -281,8 +281,8 @@ impl Cleaner {
         }
 
         status_emit!(
-            status,
-            stage: "Completed",
+            emitter,
+            action: "Completed",
             total: killed_count,
             message: "All processes killed",);
 
@@ -290,16 +290,16 @@ impl Cleaner {
     }
 
     /// Scan an app at the given path and return AppProfile
-    pub fn scan_app_profile(&mut self, status: Option<&Emitter>) -> Result<&Self> {
+    pub fn scan_app_profile(&mut self, emitter: Option<&Emitter>) -> Result<&Self> {
         status_emit!(
-            status,
+            emitter,
             "Scanning logs and associated files for '{}'",
             self.app_profile.as_app_metadata().as_info().as_name()
         );
 
         status_emit!(
-            status,
-            stage: "Started",
+            emitter,
+            action: "Started",
             message: "Finding BOM logs...",
         );
 
@@ -310,16 +310,16 @@ impl Cleaner {
         let receipts_locations = ReceiptsLocations::new();
 
         status_emit!(
-            status,
-            stage: "Started",
+            emitter,
+            action: "Started",
             message: "Finding BOM files...",
         );
 
         self.app_profile
             .find_log_bom(&receipts_locations, |cur, _path| {
                 status_emit!(
-                    status,
-                    stage: "Searching",
+                    emitter,
+                    action: "Searching",
                     current: cur,
                 );
             });
@@ -327,45 +327,45 @@ impl Cleaner {
         let total_bom_file = self.app_profile.as_app_log_receipt().count();
 
         status_emit!(
-            status,
-            stage: "Completed",
+            emitter,
+            action: "Completed",
             total: total_bom_file,
             message: "BOM logs scan completed",
         );
 
         status_emit!(
-            status,
-            stage: "Started",
+            emitter,
+            action: "Started",
             message: "Finding associated files...",
         );
 
         self.app_profile
             .find_associate_files(&locations, |cur, _path| {
                 status_emit!(
-                    status,
-                    stage: "Searching",
+                    emitter,
+                    action: "Searching",
                     current: cur,
                 );
             });
 
         status_emit!(
-            status,
-            stage: "Started",
+            emitter,
+            action: "Started",
             message: "Finding btm files...",
         );
 
         self.app_profile
             .find_btm_files(&btm_locations, |cur, _path| {
                 status_emit!(
-                    status,
-                    stage: "Searching",
+                    emitter,
+                    action: "Searching",
                     current: cur,
                 );
             });
 
         status_emit!(
-            status,
-            stage: "Completed",
+            emitter,
+            action: "Completed",
             message: "Associated files scan completed",
         );
 

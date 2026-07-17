@@ -29,18 +29,18 @@ pub async fn set_output_path() -> Result<PathBuf> {
     Ok(folder.path().to_path_buf())
 }
 
-pub async fn process_app(path: PathBuf, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || Cleaner::new_profile(&path, status.as_deref()))
+pub async fn process_app(path: PathBuf, emitter: Option<Arc<Emitter>>) -> Result<Cleaner> {
+    tokio::task::spawn_blocking(move || Cleaner::new_profile(&path, emitter.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Add application failed: {}", e))?
 }
 
 pub async fn find_app_process_async(
     mut cleaner: Cleaner,
-    status: Option<Arc<Emitter>>,
+    emitter: Option<Arc<Emitter>>,
 ) -> Result<Cleaner> {
     tokio::task::spawn_blocking(move || {
-        let _ = cleaner.find_app_process(status.as_deref());
+        let _ = cleaner.find_app_process(emitter.as_deref());
         cleaner
     })
     .await
@@ -49,16 +49,19 @@ pub async fn find_app_process_async(
 
 pub async fn kill_app_process_async(
     cleaner: Arc<Cleaner>,
-    status: Option<Arc<Emitter>>,
+    emitter: Option<Arc<Emitter>>,
 ) -> Result<()> {
-    tokio::task::spawn_blocking(move || cleaner.kill_app_process(status.as_deref()))
+    tokio::task::spawn_blocking(move || cleaner.kill_app_process(emitter.as_deref()))
         .await
         .map_err(|e| anyhow::anyhow!("Confirm and kill process failed: {}", e))?
 }
 
-pub async fn scan_app_async(mut cleaner: Cleaner, status: Option<Arc<Emitter>>) -> Result<Cleaner> {
+pub async fn scan_app_async(
+    mut cleaner: Cleaner,
+    emitter: Option<Arc<Emitter>>,
+) -> Result<Cleaner> {
     tokio::task::spawn_blocking(move || {
-        let _ = cleaner.scan_app_profile(status.as_deref());
+        let _ = cleaner.scan_app_profile(emitter.as_deref());
         cleaner
     })
     .await

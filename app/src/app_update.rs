@@ -45,12 +45,12 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 let path_input = state.app_path.clone();
                 Task::perform(
                     async move {
-                        let result = process_app(path_input, emitter).await;
+                        let result = process_app(path_input, Some(emitter)).await;
                         match result {
                             Ok(cleaner) => AppMessage::FindProcs(Ok(cleaner)),
                             Err(err) => {
                                 let failure_status =
-                                    status!(stage: "Failed", message: err.to_string(),);
+                                    status!(action: "Failed", message: err.to_string(),);
                                 AppMessage::ShowStatus(failure_status)
                             }
                         }
@@ -72,8 +72,9 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             if let Ok(cleaner) = result {
                 let emitter = channel.get_emitter();
 
-                let find_task =
-                    Task::perform(find_app_process_async(cleaner, emitter), |res| match res {
+                let find_task = Task::perform(
+                    find_app_process_async(cleaner, Some(emitter)),
+                    |res| match res {
                         Ok(cleaner) => {
                             if cleaner.as_app_profile().as_app_procs().is_empty() {
                                 AppMessage::ScanApp(Ok(cleaner))
@@ -85,7 +86,8 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             let event = status!("{}", err.to_string());
                             AppMessage::ShowStatus(event)
                         }
-                    });
+                    },
+                );
 
                 let progress_task = channel
                     .stream()
@@ -135,7 +137,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 let cleaner_arc = Arc::new(cleaner);
 
                 let confirm_task = Task::perform(
-                    kill_app_process_async(cleaner_arc.clone(), emitter),
+                    kill_app_process_async(cleaner_arc.clone(), Some(emitter)),
                     move |res| match res {
                         Ok(()) => AppMessage::ScanApp(Ok(
                             Arc::try_unwrap(cleaner_arc).unwrap_or_else(|c| (*c).clone())
@@ -161,10 +163,10 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 let emitter = channel.get_emitter();
 
                 let scan_task =
-                    Task::perform(scan_app_async(app_input, emitter), |res| match res {
+                    Task::perform(scan_app_async(app_input, Some(emitter)), |res| match res {
                         Ok(cleaner) => AppMessage::UpdateCleaner(cleaner),
                         Err(err) => {
-                            let event = status!(stage: "Failed", message: err.to_string(),);
+                            let event = status!(action: "Failed", message: err.to_string(),);
                             AppMessage::ShowStatus(event)
                         }
                     });
@@ -182,8 +184,8 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         AppMessage::ReScanApp => {
             // Check if the path is empty (meaning no app has been selected yet)
             if state.app_path.as_os_str().is_empty() {
-                let warning_status = simple_status::status!(
-                    stage: "Warning",
+                let warning_status = status!(
+                    action: "Warning",
                     message: "No application path found to re-scan.",
                 );
                 Task::done(AppMessage::ShowStatus(warning_status))
@@ -207,7 +209,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     // Send a dedicated IconLoaded message to prevent infinite loops
                     Ok(backend_cache) => AppMessage::IconLoaded(backend_cache),
                     Err(err) => {
-                        let event = status!(stage: "Failed", message: err.to_string(),);
+                        let event = status!(action: "Failed", message: err.to_string(),);
                         AppMessage::ShowStatus(event)
                     }
                 });
@@ -216,8 +218,8 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             }
 
             let founded = state.cleaner.all_entries_enumerate().len();
-            let event = simple_status::status!(
-                stage: "Completed",
+            let event = status!(
+                action: "Completed",
                 message: format!("{} items found", founded),
             );
             tasks.push(Task::done(AppMessage::ShowStatus(event)));
@@ -337,7 +339,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
                 Err(err_msg) => {
                     state.show_status = status!(
-                        stage: "Failed:",
+                        action: "Failed:",
                         message: err_msg,
                     );
                 }
