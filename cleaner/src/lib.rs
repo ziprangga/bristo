@@ -80,9 +80,24 @@ pub use rules::MatchRules;
 use anyhow::{Context, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
-use simple_status::{Emitter, status_emit};
+use simple_status::{StatusEmitter, status_emit};
 use std::collections::HashMap;
 use std::path::Path;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StatusKind {
+    Event,
+    Notification,
+}
+
+impl StatusKind {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Event => "Event",
+            Self::Notification => "Notification",
+        }
+    }
+}
 
 /// Result classification for a trash operation.
 ///
@@ -232,7 +247,7 @@ impl Cleaner {
         &self.app_profile
     }
 
-    pub fn new_profile(path: &Path, emitter: Option<&Emitter>) -> Result<Self> {
+    pub fn new_profile(path: &Path, emitter: Option<&StatusEmitter>) -> Result<Self> {
         let app_profile = AppProfile::from_path(path)?;
 
         status_emit!(
@@ -244,7 +259,7 @@ impl Cleaner {
         Ok(Self { app_profile })
     }
 
-    pub fn find_app_process(&mut self, emitter: Option<&Emitter>) -> Result<&Self> {
+    pub fn find_app_process(&mut self, emitter: Option<&StatusEmitter>) -> Result<&Self> {
         self.app_profile.find_pid_and_command();
         status_emit!(
             emitter,
@@ -255,11 +270,12 @@ impl Cleaner {
         Ok(self)
     }
 
-    pub fn kill_app_process(&self, emitter: Option<&Emitter>) -> Result<()> {
+    pub fn kill_app_process(&self, emitter: Option<&StatusEmitter>) -> Result<()> {
         let processes = self.app_profile.as_app_procs();
 
         if processes.is_empty() {
-            println!(
+            status_emit!(
+                emitter,
                 "No running processes found for {}",
                 self.app_profile.as_app_metadata().as_info().as_name()
             );
@@ -290,7 +306,7 @@ impl Cleaner {
     }
 
     /// Scan an app at the given path and return AppProfile
-    pub fn scan_app_profile(&mut self, emitter: Option<&Emitter>) -> Result<&Self> {
+    pub fn scan_app_profile(&mut self, emitter: Option<&StatusEmitter>) -> Result<&Self> {
         status_emit!(
             emitter,
             "Scanning logs and associated files for '{}'",

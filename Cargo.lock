@@ -2917,7 +2917,7 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 [[package]]
 name = "simple-status"
 version = "0.1.10"
-source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.10#e37da673796bfc7722230f7c3f4fd57654bec098"
+source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.10#5edc17c75e2a8590f00ef3ae478461cad4eb6b8c"
 dependencies = [
  "futures",
  "tokio",
