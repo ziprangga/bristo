@@ -211,10 +211,11 @@ pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Stri
             let domain = error.domain().to_string();
             let code = error.code();
 
-            let reason = if domain == "NSCocoaErrorDomain" && code == 513 {
-                "Permission not allowed by macOS privacy protection (TCC)".to_string()
-            } else {
-                format!("Failed with {} ({})", domain, code)
+            let reason = match (domain == "NSCocoaErrorDomain", code) {
+                (true, 513) => {
+                    "Permission not allowed by macOS privacy protection (TCC)".to_string()
+                }
+                _ => format!("Failed with {} ({})", domain, code),
             };
 
             failed_paths.push((path.clone(), reason));
