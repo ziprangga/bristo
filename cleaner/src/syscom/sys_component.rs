@@ -31,8 +31,6 @@
 //! level abstractions such as `Cleaner`.
 //!..
 
-use anyhow::Result;
-use anyhow::anyhow;
 use std::ffi::CStr;
 use std::path::Path;
 use std::path::PathBuf;
@@ -48,6 +46,8 @@ use objc2_foundation::{NSArray, NSAutoreleasePool, NSFileManager, NSString, NSUR
 use libc::SIGTERM;
 use libc::confstr;
 use libc::kill;
+
+use crate::error::{ErrorKind, Result};
 
 pub const DARWIN_USER_CACHE_DIR: i32 = libc::_CS_DARWIN_USER_CACHE_DIR;
 pub const DARWIN_USER_TEMP_DIR: i32 = libc::_CS_DARWIN_USER_TEMP_DIR;
@@ -116,41 +116,58 @@ pub fn sysconf_path(name: i32) -> Option<PathBuf> {
 ///
 /// Note:
 /// Processes that have already exited are ignored.
-pub fn kill_pids(pids: &str) -> Result<()> {
-    // collect error
-    let mut errors = Vec::new();
+// pub fn kill_pids(pids: &str) -> Result<()> {
+//     // collect error
+//     let mut errors = Vec::new();
 
-    for pid_str in pids.split_whitespace() {
-        // parse PID
-        let pid = pid_str
-            // can change it with .parse::<i32>()
-            .parse::<libc::pid_t>()
-            .map_err(|_| anyhow!("Invalid PID: {}", pid_str))?;
+//     for pid_str in pids.split_whitespace() {
+//         // parse PID
+//         let pid = pid_str
+//             // can change it with .parse::<i32>()
+//             .parse::<libc::pid_t>()
+//             .map_err(|_| anyhow!("Invalid PID: {}", pid_str))?;
 
-        // Invoke the direct Unix kill system call via the libc crate
-        // Using libc::SIGTERM guarantees the correct platform signal macro code
-        // can use let ret = unsafe { kill(pid as libc::c_int, SIGTERM) }; when using i32 in parsing pid
-        let ret = unsafe { kill(pid, SIGTERM) };
+//         // Invoke the direct Unix kill system call via the libc crate
+//         // Using libc::SIGTERM guarantees the correct platform signal macro code
+//         // can use let ret = unsafe { kill(pid as libc::c_int, SIGTERM) }; when using i32 in parsing pid
+//         let ret = unsafe { kill(pid, SIGTERM) };
 
-        if ret != 0 {
-            // errno contains the error code
-            let err = std::io::Error::last_os_error();
-            // Ignore if the process has already exited.
-            if err.raw_os_error() != Some(libc::ESRCH) {
-                errors.push(format!("PID {}: {}", pid, err));
-            }
-        }
+//         if ret != 0 {
+//             // errno contains the error code
+//             let err = std::io::Error::last_os_error();
+//             // Ignore if the process has already exited.
+//             if err.raw_os_error() != Some(libc::ESRCH) {
+//                 errors.push(format!("PID {}: {}", pid, err));
+//             }
+//         }
+//     }
+
+//     // If any signals failed to deliver, collect them all into an aggregate error reports
+//     if !errors.is_empty() {
+//         return Err(anyhow!(
+//             "Failed to stop some processes:\n{}",
+//             errors.join("\n")
+//         ));
+//     }
+
+//     Ok(())
+// }
+pub fn kill_pid(pid: i32) -> Result<()> {
+    let ret = unsafe { kill(pid, SIGTERM) };
+
+    if ret == 0 {
+        return Ok(());
     }
 
-    // If any signals failed to deliver, collect them all into an aggregate error reports
-    if !errors.is_empty() {
-        return Err(anyhow!(
-            "Failed to stop some processes:\n{}",
-            errors.join("\n")
-        ));
-    }
+    let err = std::io::Error::last_os_error();
 
-    Ok(())
+    if err.raw_os_error() == Some(libc::ESRCH) {
+        Err(ErrorKind::skipped().with_reason("Process already exited"))
+    } else {
+        Err(ErrorKind::failed()
+            .with_summary("Process termination failed")
+            .with_reason(err.to_string()))
+    }
 }
 
 /// Moves files to the macOS Trash.
@@ -242,9 +259,11 @@ pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Stri
 /// The target path must be representable as a valid UTF-8
 /// string.
 pub fn show_in_finder(path: &Path) -> Result<()> {
-    let s = path
-        .to_str()
-        .ok_or_else(|| anyhow!("Path is not valid UTF-8"))?;
+    let s = path.to_str().ok_or_else(|| {
+        ErrorKind::failed()
+            .with_summary("Invalid path formatting")
+            .with_reason(format!("Path is not valid UTF-8: {:?}", path))
+    })?;
 
     // Initialize an isolated Autorelease Pool instance safely
     let pool = unsafe { NSAutoreleasePool::new() };

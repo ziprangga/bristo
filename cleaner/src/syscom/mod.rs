@@ -70,7 +70,7 @@ pub use sys_asset::{
     ns_image_to_rgba_bytes,
 };
 pub use sys_component::{
-    DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR, kill_pids, show_in_finder, sysconf_path,
+    DARWIN_USER_CACHE_DIR, DARWIN_USER_TEMP_DIR, kill_pid, show_in_finder, sysconf_path,
     trash_files_nsfilemanager,
 };
 pub use sys_utility::run_lsbom_command;

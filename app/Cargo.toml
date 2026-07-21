@@ -12,7 +12,6 @@ cleaner = { workspace = true }
 # ====================
 simple-status = { workspace = true }
 mini-logger = { workspace = true }
-anyhow = { workspace = true }
 rfd = { workspace = true }
 tokio = { workspace = true }
 iced = { workspace = true }

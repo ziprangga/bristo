@@ -64,6 +64,7 @@
 //!..
 
 mod app_profile;
+mod error;
 mod locations_scan;
 mod rules;
 mod scanner;
@@ -74,30 +75,30 @@ pub use app_profile::{AppBtmFiles, BtmData};
 pub use app_profile::{AppMetadata, InfoPlist};
 pub use app_profile::{AppProcs, Proc};
 pub use app_profile::{AppProfile, FileEntry};
+pub use error::{ErrorKind, Result};
 pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
 pub use rules::MatchRules;
 
-use anyhow::{Context, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
 use simple_status::{StatusEmitter, status_emit};
 use std::collections::HashMap;
 use std::path::Path;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StatusKind {
-    Event,
-    Notification,
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+// pub enum StatusKind {
+//     Event,
+//     Notification,
+// }
 
-impl StatusKind {
-    pub const fn as_str(self) -> &'static str {
-        match self {
-            Self::Event => "Event",
-            Self::Notification => "Notification",
-        }
-    }
-}
+// impl StatusKind {
+//     pub const fn as_str(self) -> &'static str {
+//         match self {
+//             Self::Event => "Event",
+//             Self::Notification => "Notification",
+//         }
+//     }
+// }
 
 /// Result classification for a trash operation.
 ///
@@ -274,33 +275,53 @@ impl Cleaner {
         let processes = self.app_profile.as_app_procs();
 
         if processes.is_empty() {
-            status_emit!(
-                emitter,
-                "No running processes found for {}",
-                self.app_profile.as_app_metadata().as_info().as_name()
-            );
             return Ok(());
         }
 
+        let total = processes.list().len();
+        let mut errors = Vec::new();
         let mut killed_count = 0;
-
-        for p in processes.list() {
-            if syscom::kill_pids(&p.pid().to_string()).is_ok() {
-                killed_count += 1;
-            } else {
-                eprintln!(
-                    "Failed to kill PID {} for {}",
-                    p.pid(),
-                    self.app_profile.as_app_metadata().as_info().as_name()
-                );
-            }
-        }
 
         status_emit!(
             emitter,
-            action: "Completed",
-            total: killed_count,
-            message: "All processes killed",);
+            action: "Started",
+            total: total,
+            message: "Killing application processes...",
+        );
+
+        for (current, p) in processes.list().iter().enumerate() {
+            match syscom::kill_pid(p.pid()) {
+                Ok(_) => {
+                    killed_count += 1;
+                }
+
+                Err(ErrorKind::Skipped(data)) => {
+                    errors.push(data);
+                }
+
+                Err(ErrorKind::Failed(data)) => {
+                    errors.push(data);
+                }
+            }
+            status_emit!(
+                emitter,
+                action: "Killing",
+                current: current + 1,
+                total: total,
+            );
+        }
+
+        if !errors.is_empty() {
+            return Err(ErrorKind::failed()
+                .with_summary(format!("Killed {}/{} processes", killed_count, total))
+                .with_reason(
+                    errors
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n"),
+                ));
+        }
 
         Ok(())
     }
@@ -385,6 +406,14 @@ impl Cleaner {
             message: "Associated files scan completed",
         );
 
+        let total_founded = self.app_profile.all_entries().len();
+
+        status_emit!(
+            emitter,
+            action: "Completed",
+            message: format!("{} items found", total_founded),
+        );
+
         Ok(self)
     }
 
@@ -405,8 +434,14 @@ impl Cleaner {
         ));
         debug!("Creating folder: {}", app_log_folder.display());
 
-        std::fs::create_dir_all(&app_log_folder).with_context(|| {
-            format!("Failed to create log folder: {}", app_log_folder.display())
+        std::fs::create_dir_all(&app_log_folder).map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("Failed to prepare logging target")
+                .with_reason(format!(
+                    "Failed to create log folder {}: {}",
+                    app_log_folder.display(),
+                    e
+                ))
         })?;
 
         // Use par_iter() for parallel processing
@@ -500,41 +535,6 @@ impl Cleaner {
         }
 
         Ok(results)
-    }
-
-    /// Print a summary of the app data
-    /// For CLI
-    pub fn print_summary(&self) {
-        println!(
-            "App Name: {}",
-            self.app_profile.as_app_metadata().as_info().as_name()
-        );
-        println!(
-            "Bundle ID: {}",
-            self.app_profile.as_app_metadata().as_info().as_bundle_id()
-        );
-        println!(
-            "Bundle Name: {}",
-            self.app_profile
-                .as_app_metadata()
-                .as_info()
-                .as_bundle_executable_name()
-        );
-
-        println!("\nRunning processes:");
-        for p in self.app_profile.as_app_procs().list() {
-            println!("PID {}: {}", p.pid(), p.as_command());
-        }
-
-        println!("\nLog BOM files:");
-        for log in self.app_profile.as_app_log_receipt().as_bom_files() {
-            println!("{}", log.as_path().display());
-        }
-
-        println!("\nAll associated files:");
-        for (_i, entry) in self.all_entries_enumerate() {
-            println!("{} -> {}", entry.as_name(), entry.as_path().display());
-        }
     }
 
     pub fn show_in_finder(path: &Path) -> Result<()> {

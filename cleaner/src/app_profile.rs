@@ -67,11 +67,11 @@ pub use app_log_receipt::AppLogReceipt;
 pub use app_metadata::{AppMetadata, InfoPlist};
 pub use app_proc::{AppProcs, Proc};
 
+use crate::error::Result;
 use crate::locations_scan::BtmLocations;
 use crate::locations_scan::ReceiptsLocations;
 use crate::locations_scan::ScanLocations;
 use crate::scanner::construct_scanner_result;
-use anyhow::Result;
 use mini_logger::debug;
 use std::path::Path;
 

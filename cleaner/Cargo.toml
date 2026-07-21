@@ -9,7 +9,6 @@ mini-logger = { workspace = true }
 simple-status = { workspace = true }
 
 # ==============
-anyhow = { workspace = true }
 plist = { workspace = true }
 walkdir = { workspace = true }
 rayon = { workspace = true }

@@ -27,7 +27,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
-use anyhow::{Context, Result};
+use crate::error::{ErrorKind, Result};
 
 /// Exports a BOM file to a text log.
 ///
@@ -56,21 +56,46 @@ pub fn run_lsbom_command(bom_file: &Path, output_file: &Path) -> Result<()> {
     let output = Command::new("lsbom")
         .args(["-f", "-l", "-s", "-p", "f", &bom_file_str])
         .output()
-        .with_context(|| format!("Failed to run lsbom on {}", bom_file.display()))?;
+        // .with_context(|| format!("Failed to run lsbom on {}", bom_file.display()))?;
+        .map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("Utility execution failed")
+                .with_reason(format!(
+                    "Failed to run lsbom on {}: {}",
+                    bom_file.display(),
+                    e
+                ))
+        })?;
 
     if output.status.success() {
-        let mut f = File::create(output_file)
-            .with_context(|| format!("Failed to create file: {}", output_file.display()))?;
-        f.write_all(&output.stdout)
-            .with_context(|| format!("Failed to write BOM log: {}", output_file.display()))?;
+        let mut f = File::create(output_file).map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("File creation failed")
+                .with_reason(format!(
+                    "Failed to create file {}: {}",
+                    output_file.display(),
+                    e
+                ))
+        })?;
+        f.write_all(&output.stdout).map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("File writing failed")
+                .with_reason(format!(
+                    "Failed to write BOM log to {}: {}",
+                    output_file.display(),
+                    e
+                ))
+        })?;
         println!("Saved BOM log: {}", output_file.display());
         Ok(())
     } else {
-        anyhow::bail!(
-            "lsbom failed for {}: {}",
-            bom_file.display(),
-            String::from_utf8_lossy(&output.stderr)
-        )
+        Err(ErrorKind::failed()
+            .with_summary("BOM parsing utility failure")
+            .with_reason(format!(
+                "lsbom failed for {}: {}",
+                bom_file.display(),
+                String::from_utf8_lossy(&output.stderr).trim()
+            )))
     }
 }
 

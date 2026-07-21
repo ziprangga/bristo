@@ -53,7 +53,7 @@
 mod info_plist;
 pub use info_plist::InfoPlist;
 
-use anyhow::Result;
+use crate::error::{ErrorKind, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
@@ -154,8 +154,14 @@ impl AppMetadata {
                 .min_by_key(|entry| entry.depth())
                 .map(|entry| entry.path().to_path_buf());
 
-            let selected = upper
-                .ok_or_else(|| anyhow::anyhow!("Info.plist not found in {}", app_path.display()))?;
+            let selected = upper.ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Missing metadata configuration")
+                    .with_reason(format!(
+                        "Info.plist not found in bundle: {}",
+                        app_path.display()
+                    ))
+            })?;
 
             debug!("Info.plist selected from: {}", selected.to_string_lossy());
 

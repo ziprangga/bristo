@@ -6,15 +6,23 @@ use cleaner;
 use simple_status::StatusEmitter;
 
 #[test]
-fn test_app_metadata_from_temp_path() -> anyhow::Result<()> {
+fn test_app_metadata_from_temp_path() -> cleaner::Result<()> {
     // Create temporary app folder
     let base_dir = std::env::temp_dir();
     let app_path = base_dir.join("test.app");
-    fs::create_dir_all(app_path.join("Contents"))?;
+    fs::create_dir_all(app_path.join("Contents")).map_err(|e| {
+        cleaner::ErrorKind::failed()
+            .with_summary("Test setup failed")
+            .with_reason(e.to_string())
+    })?;
 
     // Create minimal Info.plist
     let plist_path = app_path.join("Contents/Info.plist");
-    let mut plist_file = File::create(&plist_path)?;
+    let mut plist_file = File::create(&plist_path).map_err(|e| {
+        cleaner::ErrorKind::failed()
+            .with_summary("Test setup failed")
+            .with_reason(e.to_string())
+    })?;
 
     // Minimal plist XML content
     let plist_content = r#"
@@ -29,10 +37,16 @@ fn test_app_metadata_from_temp_path() -> anyhow::Result<()> {
 </dict>
 </plist>
 "#;
-    plist_file.write_all(plist_content.as_bytes())?;
+    plist_file
+        .write_all(plist_content.as_bytes())
+        .map_err(|e| {
+            cleaner::ErrorKind::failed()
+                .with_summary("Test setup failed")
+                .with_reason(e.to_string())
+        })?;
 
     // Now call your AppMetadata function
-    let app_profile = cleaner::AppProfile::from_path(&app_path.to_path_buf())?;
+    let app_profile = cleaner::AppProfile::from_path(&app_path)?;
     assert_eq!(
         app_profile.as_app_metadata().as_info().as_bundle_id(),
         "com.example.test"
@@ -45,15 +59,23 @@ fn test_app_metadata_from_temp_path() -> anyhow::Result<()> {
 }
 
 #[test]
-fn test_running_processes_mock() -> anyhow::Result<()> {
+fn test_running_processes_mock() -> cleaner::Result<()> {
     // Create temporary .app folder
     let base_dir = std::env::temp_dir();
     let app_path = base_dir.join("test.app");
-    fs::create_dir_all(app_path.join("Contents"))?;
+    fs::create_dir_all(app_path.join("Contents")).map_err(|e| {
+        cleaner::ErrorKind::failed()
+            .with_summary("Test setup failed")
+            .with_reason(e.to_string())
+    })?;
 
     // Create minimal Info.plist
     let plist_path = app_path.join("Contents/Info.plist");
-    let mut plist_file = File::create(&plist_path)?;
+    let mut plist_file = File::create(&plist_path).map_err(|e| {
+        cleaner::ErrorKind::failed()
+            .with_summary("Test setup failed")
+            .with_reason(e.to_string())
+    })?;
     let plist_content = r#"
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -66,10 +88,16 @@ fn test_running_processes_mock() -> anyhow::Result<()> {
 </dict>
 </plist>
 "#;
-    plist_file.write_all(plist_content.as_bytes())?;
+    plist_file
+        .write_all(plist_content.as_bytes())
+        .map_err(|e| {
+            cleaner::ErrorKind::failed()
+                .with_summary("Test setup failed")
+                .with_reason(e.to_string())
+        })?;
 
     // Create AppProfile instance
-    let app_profile = cleaner::AppProfile::from_path(&app_path.to_path_buf())?;
+    let app_profile = cleaner::AppProfile::from_path(&app_path)?;
 
     let mut cleaner = cleaner::Cleaner::new(app_profile);
 
@@ -88,7 +116,7 @@ fn test_running_processes_mock() -> anyhow::Result<()> {
 // Be careful: this can kill actual running processes, so usually skipped in automated tests
 #[test]
 #[ignore]
-fn test_kill_processes_safe() -> anyhow::Result<()> {
+fn test_kill_processes_safe() -> cleaner::Result<()> {
     // let cleaner = cleaner::Cleaner::default();
     // Use a dummy .app path
     let app_path: PathBuf = PathBuf::from("/Applications/NonExistent.app");
@@ -109,9 +137,10 @@ fn test_kill_processes_safe() -> anyhow::Result<()> {
 
     let status: Option<&StatusEmitter> = None;
 
-    let mut cleaner = cleaner::Cleaner::new(app_profile);
-    cleaner.find_app_process(status)?;
-    cleaner.kill_app_process(status)?; // Safe: no processes exist
+    let mut cleaner_instant = cleaner::Cleaner::new(app_profile);
+    cleaner_instant.find_app_process(status)?;
+    // cleaner.kill_app_process(status)?; // Safe: no processes exist
+    cleaner_instant.kill_app_process(status)?;
     Ok(())
 }
 

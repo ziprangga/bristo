@@ -1,12 +1,13 @@
-use anyhow::Result;
 use std::collections::HashMap;
 use std::path::Path;
 use std::path::PathBuf;
 
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
+use cleaner::Result;
 use cleaner::TrashEntry;
-use simple_status::StatusEvent;
+
+use crate::app_status::Status;
 
 // ========
 
@@ -20,24 +21,26 @@ pub enum AppMessage {
     DropApp(PathBuf),
     AppPath,
     ProcessApp(PathBuf),
-    ScanApp(Result<Cleaner, String>),
+    ScanApp(Result<Cleaner>),
     ReScanApp,
 
     ModalAsk(ModalAskMessage),
-    FindProcs(Result<Cleaner, String>),
-    ConfirmKill(Result<Cleaner, String>),
+    FindProcs(Result<Cleaner>),
+    ConfirmKill(Result<Cleaner>),
+    KillFinished(Result<()>, Cleaner),
 
     UpdateCleaner(Cleaner),
     IconLoaded(IconCache),
     OpenSelectedPath(usize),
 
     ExportBomFilesLoc,
-    ExportBomFiles(Result<PathBuf, String>),
+    ExportBomFiles(Result<PathBuf>),
 
     MoveToTrash,
-    UpdateEntryFiles(Result<Vec<TrashEntry>, String>),
+    UpdateEntryFiles(Result<Vec<TrashEntry>>),
     ClearList,
-    ShowStatus(StatusEvent),
+
+    ShowStatus(Status),
 
     NoOperations,
 }
@@ -45,19 +48,19 @@ pub enum AppMessage {
 #[derive(Clone)]
 pub struct AppState {
     pub app_path: PathBuf,
-    pub show_status: StatusEvent,
     pub cleaner: Cleaner,
     pub selected_file: Option<usize>,
     pub show_modal_ask: ModalAsk,
     pub pending_cleaner: Option<Cleaner>,
 
     pub icon_cache: HashMap<String, image::Handle>,
+
+    pub show_status: Status,
 }
 
 impl AppState {
     pub fn new() -> Self {
         let app_path = PathBuf::new();
-        let show_status = StatusEvent::default();
         let cleaner = Cleaner::default();
         let selected_file = None;
         let show_modal_ask = ModalAsk::default();
@@ -65,15 +68,18 @@ impl AppState {
 
         let icon_cache = HashMap::new();
 
+        let show_status = Status::default();
+
         Self {
             app_path,
-            show_status,
             cleaner,
             selected_file,
             show_modal_ask,
             pending_cleaner,
 
             icon_cache,
+
+            show_status,
         }
     }
 
@@ -81,8 +87,8 @@ impl AppState {
         self.app_path.clear();
         self.cleaner.reset();
         self.selected_file = None;
-        self.show_status = StatusEvent::default();
         self.pending_cleaner = None;
+        self.show_status = Status::default();
     }
 
     pub fn get_cached_icon(&self, path: &Path) -> Option<image::Handle> {

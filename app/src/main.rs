@@ -16,6 +16,7 @@ mod app_modal;
 mod app_state;
 mod app_task;
 // mod app_tree_view;
+pub mod app_status;
 mod app_update;
 mod app_window;
 pub mod ui_element;

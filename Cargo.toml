@@ -5,7 +5,7 @@ resolver = "3"
 
 [workspace.package]
 edition = "2024"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["ziprangga"]
 license = "Apache-2.0"
 
@@ -21,7 +21,6 @@ sysinfo = "0.37"
 # ====================
 mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false, tag = "v0.1.2"}
 simple-status = { git = "https://github.com/ziprangga/simple-status.git", tag = "v0.1.10"}
-anyhow = "1.0.100"
 tokio = { version = "1.49", features = ["full"] }
 rfd = "0.17"
 unicode-normalization = "0.1"

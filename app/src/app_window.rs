@@ -66,14 +66,13 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
             let path = entry.as_path().to_path_buf();
 
             // ===============
-            let display_path = if let Ok(home) = std::env::var("HOME") {
-                if let Ok(stripped) = path.strip_prefix(&home) {
-                    format!("~/{}", stripped.to_string_lossy())
-                } else {
-                    path.to_string_lossy().to_string()
-                }
-            } else {
-                path.to_string_lossy().to_string()
+
+            let display_path = match std::env::var("HOME") {
+                Ok(home) => match path.strip_prefix(&home) {
+                    Ok(stripped) => format!("~/{}", stripped.to_string_lossy()),
+                    Err(_) => path.to_string_lossy().to_string(),
+                },
+                Err(_) => path.to_string_lossy().to_string(),
             };
 
             // ===================
@@ -211,8 +210,18 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         .width(Length::Shrink)
     };
 
-    let status_msg = Container::new(
-        text(state.show_status.to_string())
+    let result_msg = match &state.show_status.status_result() {
+        Some(result) => result.to_string(),
+        None => String::new(),
+    };
+
+    let event_msg = match state.show_status.status_event() {
+        Some(event) => event.to_string(),
+        None => String::new(),
+    };
+
+    let status_result = Container::new(
+        text(result_msg)
             .size(12)
             .width(Length::Fill)
             .center()
@@ -223,6 +232,20 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     .width(Length::Fill)
     .align_x(alignment::Horizontal::Center)
     .align_y(alignment::Vertical::Center);
+
+    let status_event = Container::new(text(event_msg).size(12).width(Length::Fill).center().style(
+        |_| text::Style {
+            color: Some(Color::from_rgb8(200, 200, 200)),
+        },
+    ))
+    .width(Length::Fill)
+    .align_x(alignment::Horizontal::Center)
+    .align_y(alignment::Vertical::Center);
+
+    let status = Column::new()
+        .push(status_result)
+        .push(status_event)
+        .spacing(10);
 
     let button_delete = Container::new(
         button(text("Move to Trash").size(12))
@@ -277,7 +300,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     });
 
     let bottom = Container::new(
-        row![status_msg, button_delete,]
+        row![status, button_delete,]
             .align_y(alignment::Vertical::Center)
             .spacing(5),
     )

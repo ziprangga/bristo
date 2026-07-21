@@ -42,7 +42,7 @@
 //! required by the application scanner.
 //!..
 
-use anyhow::{Context, Result, anyhow};
+use crate::error::{ErrorKind, Result};
 use plist::Value;
 use std::path::Path;
 
@@ -112,17 +112,26 @@ impl InfoPlist {
     /// the scanner requires application identity rather than
     /// complete bundle metadata.
     pub fn from_plist(plist_path: &Path, app_path: &Path) -> Result<Self> {
-        let plist = Value::from_file(plist_path)
-            .with_context(|| format!("Failed to read plist: {}", plist_path.display()))?;
+        let plist = Value::from_file(plist_path).map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("Failed to read plist file")
+                .with_reason(format!("{}: {}", plist_path.display(), e))
+        })?;
 
-        let dict = plist
-            .as_dictionary()
-            .ok_or_else(|| anyhow!("Invalid plist format"))?;
+        let dict = plist.as_dictionary().ok_or_else(|| {
+            ErrorKind::failed()
+                .with_summary("Invalid plist structure")
+                .with_reason("The parsed plist root is not a dictionary mapping")
+        })?;
 
         let bundle_id = dict
             .get("CFBundleIdentifier")
             .and_then(|v| v.as_string())
-            .ok_or_else(|| anyhow!("CFBundleIdentifier not found"))?
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Missing bundle identifier")
+                    .with_reason("The required field 'CFBundleIdentifier' was missing or invalid")
+            })?
             .to_string();
 
         let name = dict
@@ -134,12 +143,20 @@ impl InfoPlist {
                     .file_stem()
                     .map(|s| s.to_string_lossy().into_owned())
             })
-            .ok_or_else(|| anyhow!("Failed to determine app name"))?;
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Application identity resolution failed")
+                    .with_reason("Failed to determine application name from plist or bundle path")
+            })?;
 
         let bundle_executable_name = dict
             .get("CFBundleExecutable")
             .and_then(|v| v.as_string())
-            .ok_or_else(|| anyhow!("CFBundleExecutable not found"))?
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Missing executable configuration")
+                    .with_reason("The required field 'CFBundleExecutable' was missing or invalid")
+            })?
             .to_string();
 
         let organization = bundle_id.split('.').nth(1).unwrap_or_default().to_string();
