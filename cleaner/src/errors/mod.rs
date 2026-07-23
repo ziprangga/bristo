@@ -58,21 +58,18 @@ impl ErrorKind {
 
 impl std::fmt::Display for ErrorKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let prefix = match self.kind {
-            Kind::Failed => "[FAILED]",
-            Kind::Skipped => "[SKIPPED]",
-        };
+        f.write_str("[")?;
 
-        f.write_str(prefix)?;
+        f.write_str(self.kind.as_str())?;
 
         if let Some(summary) = self.summary() {
-            write!(f, " {} :", summary)?;
+            write!(f, ": {}", summary)?;
+        }
 
-            if let Some(reason) = self.reason() {
-                f.write_str(reason)?;
-            }
-        } else if let Some(reason) = self.reason() {
-            write!(f, " {}", reason)?;
+        f.write_str("]")?;
+
+        if let Some(reason) = self.reason() {
+            write!(f, " - {}", reason)?;
         }
 
         Ok(())
