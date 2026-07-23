@@ -98,27 +98,3 @@ pub fn run_lsbom_command(bom_file: &Path, output_file: &Path) -> Result<()> {
             )))
     }
 }
-
-// pub fn run_cmd_as_root(command: &str) -> Result<(), String> {
-//     let escaped_command = command.replace("\"", "\\\"");
-//     let script = format!(
-//         "do shell script \"{}\" with administrator privileges",
-//         escaped_command
-//     );
-
-//     let output = Command::new("osascript")
-//         .arg("-e")
-//         .arg(&script)
-//         .output()
-//         .map_err(|e| format!("Failed to execute osascript: {}", e))?;
-
-//     if output.status.success() {
-//         Ok(())
-//     } else {
-//         let error_msg = String::from_utf8_lossy(&output.stderr);
-//         Err(format!(
-//             "Authorization failed or user cancelled: {}",
-//             error_msg.trim()
-//         ))
-//     }
-// }

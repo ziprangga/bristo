@@ -116,42 +116,6 @@ pub fn sysconf_path(name: i32) -> Option<PathBuf> {
 ///
 /// Note:
 /// Processes that have already exited are ignored.
-// pub fn kill_pids(pids: &str) -> Result<()> {
-//     // collect error
-//     let mut errors = Vec::new();
-
-//     for pid_str in pids.split_whitespace() {
-//         // parse PID
-//         let pid = pid_str
-//             // can change it with .parse::<i32>()
-//             .parse::<libc::pid_t>()
-//             .map_err(|_| anyhow!("Invalid PID: {}", pid_str))?;
-
-//         // Invoke the direct Unix kill system call via the libc crate
-//         // Using libc::SIGTERM guarantees the correct platform signal macro code
-//         // can use let ret = unsafe { kill(pid as libc::c_int, SIGTERM) }; when using i32 in parsing pid
-//         let ret = unsafe { kill(pid, SIGTERM) };
-
-//         if ret != 0 {
-//             // errno contains the error code
-//             let err = std::io::Error::last_os_error();
-//             // Ignore if the process has already exited.
-//             if err.raw_os_error() != Some(libc::ESRCH) {
-//                 errors.push(format!("PID {}: {}", pid, err));
-//             }
-//         }
-//     }
-
-//     // If any signals failed to deliver, collect them all into an aggregate error reports
-//     if !errors.is_empty() {
-//         return Err(anyhow!(
-//             "Failed to stop some processes:\n{}",
-//             errors.join("\n")
-//         ));
-//     }
-
-//     Ok(())
-// }
 pub fn kill_pid(pid: i32) -> Result<()> {
     let ret = unsafe { kill(pid, SIGTERM) };
 
