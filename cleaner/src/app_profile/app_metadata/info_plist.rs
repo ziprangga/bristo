@@ -42,7 +42,7 @@
 //! required by the application scanner.
 //!..
 
-use crate::error::{ErrorKind, Result};
+use crate::errors::{ErrorKind, Result};
 use plist::Value;
 use std::path::Path;
 

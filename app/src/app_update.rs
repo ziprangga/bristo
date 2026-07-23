@@ -169,7 +169,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
         AppMessage::KillFinished(result, cleaner) => {
             let status = match result {
-                Ok(()) => Status::new().with_status_success("Success"),
+                Ok(()) => Status::new().with_status_success("killed process"),
                 Err(err) => Status::new().with_status_error(err),
             };
 
@@ -390,20 +390,10 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 }
 
 pub fn subscription(_state: &AppState) -> Subscription<AppMessage> {
-    // iced::event::listen().map(|event| match event {
-    //     Event::Window(window::Event::FileDropped(path)) => AppMessage::DropApp(path),
-    //     _ => AppMessage::NoOperations,
-    // })
     let file_drop_sub = iced::event::listen().map(|event| match event {
         iced::Event::Window(iced::window::Event::FileDropped(path)) => AppMessage::DropApp(path),
         _ => AppMessage::NoOperations,
     });
-
-    // let status = if let Some(stream) = simple_status::stream() {
-    //     Subscription::run(stream.map(AppMessage::ShowStatus))
-    // } else {
-    //     Subscription::none()
-    // };
 
     Subscription::batch(vec![file_drop_sub])
 }

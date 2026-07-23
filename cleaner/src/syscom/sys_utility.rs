@@ -27,7 +27,7 @@ use std::io::Write;
 use std::path::Path;
 use std::process::Command;
 
-use crate::error::{ErrorKind, Result};
+use crate::errors::{ErrorKind, Result};
 
 /// Exports a BOM file to a text log.
 ///

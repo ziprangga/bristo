@@ -154,15 +154,15 @@ impl AppLogReceipt {
         &mut self,
         app_metadata: &AppMetadata,
         locations: &ReceiptsLocations,
-        in_progress: F,
+        progress: F,
     ) where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.bom_files.clear();
         let results: Vec<ReceiptData> = scan_general(
             locations.as_paths(),
             1,
-            |n, path| in_progress(n, path),
+            |n, path| progress(n, path),
             |path| {
                 path.extension().map(|ext| ext == "bom").unwrap_or(false)
                     && MatchRules::new()

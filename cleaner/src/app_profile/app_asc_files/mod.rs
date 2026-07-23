@@ -114,7 +114,7 @@ impl AppAscFiles {
 
     // Scan all file associate from list of location
     // for huge directory and try using walkdir + rayon
-    // use in_progress as emitter status to caller
+    // use progress as emitter status to caller
     //
     // Design:
     //
@@ -131,14 +131,14 @@ impl AppAscFiles {
         &mut self,
         app_metadata: &AppMetadata,
         locations: &ScanLocations,
-        in_progress: F,
+        progress: F,
     ) where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         let main_results: Vec<AscData> = scan_general(
             locations.as_paths(),
             3,
-            |n, path| in_progress(n, path),
+            |n, path| progress(n, path),
             |path| {
                 MatchRules::new()
                     .equal(app_metadata.as_info().as_name())

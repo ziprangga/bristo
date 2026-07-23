@@ -47,7 +47,7 @@ use libc::SIGTERM;
 use libc::confstr;
 use libc::kill;
 
-use crate::error::{ErrorKind, Result};
+use crate::errors::{ErrorKind, Result};
 
 pub const DARWIN_USER_CACHE_DIR: i32 = libc::_CS_DARWIN_USER_CACHE_DIR;
 pub const DARWIN_USER_TEMP_DIR: i32 = libc::_CS_DARWIN_USER_TEMP_DIR;
@@ -164,9 +164,7 @@ pub fn kill_pid(pid: i32) -> Result<()> {
     if err.raw_os_error() == Some(libc::ESRCH) {
         Err(ErrorKind::skipped().with_reason("Process already exited"))
     } else {
-        Err(ErrorKind::failed()
-            .with_summary("Process termination failed")
-            .with_reason(err.to_string()))
+        Err(ErrorKind::failed().with_reason(err.to_string()))
     }
 }
 

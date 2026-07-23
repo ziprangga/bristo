@@ -3,7 +3,6 @@ use std::io::Write;
 use std::path::PathBuf;
 
 use cleaner;
-use simple_status::StatusEmitter;
 
 #[test]
 fn test_app_metadata_from_temp_path() -> cleaner::Result<()> {
@@ -101,9 +100,8 @@ fn test_running_processes_mock() -> cleaner::Result<()> {
 
     let mut cleaner = cleaner::Cleaner::new(app_profile);
 
-    let status: Option<&StatusEmitter> = None;
     // Call find_app_processess; since nothing is really running, we just check it doesn't panic
-    let _processes = cleaner.find_app_process(status);
+    let _cleaner_ref = cleaner.find_app_process(None::<fn(std::borrow::Cow<'static, str>)>)?;
     // assert!(processes.is_empty());
 
     // Optional cleanup
@@ -135,12 +133,9 @@ fn test_kill_processes_safe() -> cleaner::Result<()> {
         cleaner::AppBtmFiles::default(),
     );
 
-    let status: Option<&StatusEmitter> = None;
-
     let mut cleaner_instant = cleaner::Cleaner::new(app_profile);
-    cleaner_instant.find_app_process(status)?;
-    // cleaner.kill_app_process(status)?; // Safe: no processes exist
-    cleaner_instant.kill_app_process(status)?;
+    cleaner_instant.find_app_process(None::<fn(std::borrow::Cow<'static, str>)>)?;
+    cleaner_instant.kill_app_process(None::<fn(usize, usize)>)?; // Safe: no processes exist
     Ok(())
 }
 

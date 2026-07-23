@@ -478,7 +478,6 @@ dependencies = [
  "objc2-uniform-type-identifiers 0.3.2",
  "plist",
  "rayon",
- "simple-status",
  "sysinfo",
  "unicode-normalization",
  "walkdir",
@@ -2909,7 +2908,7 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 [[package]]
 name = "simple-status"
 version = "0.1.10"
-source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.10#5edc17c75e2a8590f00ef3ae478461cad4eb6b8c"
+source = "git+https://github.com/ziprangga/simple-status.git?tag=v0.1.10#875f5e395d36dc815e42805bde0a7fb6b871ae89"
 dependencies = [
  "futures",
  "tokio",

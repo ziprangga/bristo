@@ -143,14 +143,14 @@ impl AppBtmFiles {
         &mut self,
         app_metadata: &AppMetadata,
         locations: &BtmLocations,
-        in_progress: F,
+        progress: F,
     ) where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         let results: Vec<BtmData> = scan_general(
             &locations.all_paths(),
             2,
-            |n, path| in_progress(n, path),
+            |n, path| progress(n, path),
             |path| {
                 MatchRules::new()
                     .equal(app_metadata.as_info().as_name())

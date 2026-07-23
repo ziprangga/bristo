@@ -67,7 +67,7 @@ pub use app_log_receipt::AppLogReceipt;
 pub use app_metadata::{AppMetadata, InfoPlist};
 pub use app_proc::{AppProcs, Proc};
 
-use crate::error::Result;
+use crate::errors::Result;
 use crate::locations_scan::BtmLocations;
 use crate::locations_scan::ReceiptsLocations;
 use crate::locations_scan::ScanLocations;
@@ -238,32 +238,32 @@ impl AppProfile {
         }
     }
 
-    pub fn find_log_bom<F>(&mut self, locations: &ReceiptsLocations, in_progress: F)
+    pub fn find_log_bom<F>(&mut self, locations: &ReceiptsLocations, progress: F)
     where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.app_log_receipt
-            .scan_bom_files(&self.app_metadata, locations, in_progress);
+            .scan_bom_files(&self.app_metadata, locations, progress);
     }
 
     // Scan all file associate from list of location
-    // use in_progress as emitter status to caller
-    pub fn find_associate_files<F>(&mut self, locations: &ScanLocations, in_progress: F)
+    // use progress as emitter status to caller
+    pub fn find_associate_files<F>(&mut self, locations: &ScanLocations, progress: F)
     where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.app_asc_files
-            .scan_asc_files(&self.app_metadata, locations, in_progress);
+            .scan_asc_files(&self.app_metadata, locations, progress);
     }
 
     // Scan all file btm from list of location
-    // use in_progress as emitter status to caller
-    pub fn find_btm_files<F>(&mut self, locations: &BtmLocations, in_progress: F)
+    // use progress as emitter status to caller
+    pub fn find_btm_files<F>(&mut self, locations: &BtmLocations, progress: F)
     where
-        F: Fn(usize, &Path) + Send + Sync,
+        F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.app_btm_files
-            .scan_btm_files(&self.app_metadata, locations, in_progress);
+            .scan_btm_files(&self.app_metadata, locations, progress);
     }
 
     /// Returns all discovered filesystem entries.

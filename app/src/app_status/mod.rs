@@ -1,3 +1,4 @@
+mod render;
 use cleaner::ErrorKind;
 use simple_status::StatusEvent;
 
@@ -16,19 +17,6 @@ impl StatusResult {
 
     pub fn error(error: ErrorKind) -> Self {
         Self::Error(error)
-    }
-}
-
-impl std::fmt::Display for StatusResult {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Success(msg) => match msg.is_empty() {
-                true => f.write_str("[SUCCESS]"),
-                false => write!(f, "[SUCCESS] {}", msg),
-            },
-
-            Self::Error(error) => write!(f, "{}", error),
-        }
     }
 }
 

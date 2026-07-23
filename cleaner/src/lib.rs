@@ -64,7 +64,7 @@
 //!..
 
 mod app_profile;
-mod error;
+mod errors;
 mod locations_scan;
 mod rules;
 mod scanner;
@@ -75,30 +75,15 @@ pub use app_profile::{AppBtmFiles, BtmData};
 pub use app_profile::{AppMetadata, InfoPlist};
 pub use app_profile::{AppProcs, Proc};
 pub use app_profile::{AppProfile, FileEntry};
-pub use error::{ErrorKind, Result};
+pub use errors::{ErrorKind, Result};
 pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
 pub use rules::MatchRules;
 
 use mini_logger::debug;
 use rayon::prelude::*;
-use simple_status::{StatusEmitter, status_emit};
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
-
-// #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-// pub enum StatusKind {
-//     Event,
-//     Notification,
-// }
-
-// impl StatusKind {
-//     pub const fn as_str(self) -> &'static str {
-//         match self {
-//             Self::Event => "Event",
-//             Self::Notification => "Notification",
-//         }
-//     }
-// }
 
 /// Result classification for a trash operation.
 ///
@@ -248,30 +233,38 @@ impl Cleaner {
         &self.app_profile
     }
 
-    pub fn new_profile(path: &Path, emitter: Option<&StatusEmitter>) -> Result<Self> {
+    pub fn new_profile<F>(path: &Path, progress: Option<F>) -> Result<Self>
+    where
+        F: Fn(Cow<'static, str>) + Send + Sync + Clone,
+    {
         let app_profile = AppProfile::from_path(path)?;
 
-        status_emit!(
-            emitter,
-            "Scanning running processes for '{}'",
-            app_profile.as_app_metadata().as_info().as_name()
-        );
+        if let Some(ref progress_hook) = progress {
+            let app_name = app_profile.as_app_metadata().as_info().as_name();
+            progress_hook(Cow::Owned(format!("Found profile for '{}'", app_name)));
+        }
 
         Ok(Self { app_profile })
     }
 
-    pub fn find_app_process(&mut self, emitter: Option<&StatusEmitter>) -> Result<&Self> {
+    pub fn find_app_process<F>(&mut self, progress: Option<F>) -> Result<&Self>
+    where
+        F: Fn(Cow<'static, str>) + Send + Sync + Clone,
+    {
         self.app_profile.find_pid_and_command();
-        status_emit!(
-            emitter,
-            "Found process {}",
-            self.app_profile.as_app_procs().list().len()
-        );
+
+        if let Some(ref progress_hook) = progress {
+            let process_count = self.app_profile.as_app_procs().list().len();
+            progress_hook(Cow::Owned(format!("Found process {}", process_count)));
+        }
 
         Ok(self)
     }
 
-    pub fn kill_app_process(&self, emitter: Option<&StatusEmitter>) -> Result<()> {
+    pub fn kill_app_process<F>(&self, progress: Option<F>) -> Result<()>
+    where
+        F: Fn(usize, usize) + Send + Sync + Clone,
+    {
         let processes = self.app_profile.as_app_procs();
 
         if processes.is_empty() {
@@ -282,33 +275,27 @@ impl Cleaner {
         let mut errors = Vec::new();
         let mut killed_count = 0;
 
-        status_emit!(
-            emitter,
-            action: "Started",
-            total: total,
-            message: "Killing application processes...",
-        );
-
         for (current, p) in processes.list().iter().enumerate() {
             match syscom::kill_pid(p.pid()) {
                 Ok(_) => {
                     killed_count += 1;
                 }
 
-                Err(ErrorKind::Skipped(data)) => {
-                    errors.push(data);
-                }
+                // Err(ErrorKind::Skipped(data)) => {
+                //     errors.push(data);
+                // }
 
-                Err(ErrorKind::Failed(data)) => {
-                    errors.push(data);
+                // Err(ErrorKind::Failed(data)) => {
+                //     errors.push(data);
+                // }
+                Err(err) => {
+                    errors.push(err);
                 }
             }
-            status_emit!(
-                emitter,
-                action: "Killing",
-                current: current + 1,
-                total: total,
-            );
+
+            if let Some(ref progress_hook) = progress {
+                progress_hook(current + 1, total);
+            }
         }
 
         if !errors.is_empty() {
@@ -317,7 +304,8 @@ impl Cleaner {
                 .with_reason(
                     errors
                         .iter()
-                        .map(|e| e.to_string())
+                        .filter_map(|e| e.reason())
+                        .map(str::to_owned)
                         .collect::<Vec<_>>()
                         .join("\n"),
                 ));
@@ -327,92 +315,23 @@ impl Cleaner {
     }
 
     /// Scan an app at the given path and return AppProfile
-    pub fn scan_app_profile(&mut self, emitter: Option<&StatusEmitter>) -> Result<&Self> {
-        status_emit!(
-            emitter,
-            "Scanning logs and associated files for '{}'",
-            self.app_profile.as_app_metadata().as_info().as_name()
-        );
-
-        status_emit!(
-            emitter,
-            action: "Started",
-            message: "Finding BOM logs...",
-        );
-
+    pub fn scan_app_profile<F>(&mut self, progress: F) -> Result<&Self>
+    where
+        F: Fn(usize, &Path) + Send + Sync + Clone,
+    {
         let locations = ScanLocations::new();
 
         let btm_locations = BtmLocations::new();
 
         let receipts_locations = ReceiptsLocations::new();
 
-        status_emit!(
-            emitter,
-            action: "Started",
-            message: "Finding BOM files...",
-        );
+        self.app_profile
+            .find_log_bom(&receipts_locations, progress.clone());
 
         self.app_profile
-            .find_log_bom(&receipts_locations, |cur, _path| {
-                status_emit!(
-                    emitter,
-                    action: "Searching",
-                    current: cur,
-                );
-            });
+            .find_associate_files(&locations, progress.clone());
 
-        let total_bom_file = self.app_profile.as_app_log_receipt().count();
-
-        status_emit!(
-            emitter,
-            action: "Completed",
-            total: total_bom_file,
-            message: "BOM logs scan completed",
-        );
-
-        status_emit!(
-            emitter,
-            action: "Started",
-            message: "Finding associated files...",
-        );
-
-        self.app_profile
-            .find_associate_files(&locations, |cur, _path| {
-                status_emit!(
-                    emitter,
-                    action: "Searching",
-                    current: cur,
-                );
-            });
-
-        status_emit!(
-            emitter,
-            action: "Started",
-            message: "Finding btm files...",
-        );
-
-        self.app_profile
-            .find_btm_files(&btm_locations, |cur, _path| {
-                status_emit!(
-                    emitter,
-                    action: "Searching",
-                    current: cur,
-                );
-            });
-
-        status_emit!(
-            emitter,
-            action: "Completed",
-            message: "Associated files scan completed",
-        );
-
-        let total_founded = self.app_profile.all_entries().len();
-
-        status_emit!(
-            emitter,
-            action: "Completed",
-            message: format!("{} items found", total_founded),
-        );
+        self.app_profile.find_btm_files(&btm_locations, progress);
 
         Ok(self)
     }

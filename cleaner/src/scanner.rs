@@ -187,7 +187,7 @@ where
 pub fn scan_general<T, FProgress, FMatch, FBuild>(
     locations: &[PathBuf],
     max_depth: usize,
-    in_progress: FProgress,
+    progress: FProgress,
     is_match: FMatch,
     build: FBuild,
 ) -> Vec<T>
@@ -198,7 +198,7 @@ where
     FBuild: Fn(PathBuf) -> T + Send + Sync,
 {
     let counter = Arc::new(AtomicUsize::new(0));
-    let progress = Arc::new(in_progress);
+    let progress = Arc::new(progress);
 
     locations
         .par_iter()

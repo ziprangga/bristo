@@ -1,12 +1,11 @@
-use std::path::PathBuf;
-use std::sync::Arc;
-
 use rfd::AsyncFileDialog;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use cleaner::TrashEntry;
 use cleaner::{Cleaner, IconCache};
 use cleaner::{ErrorKind, Result};
-use simple_status::StatusEmitter;
+use simple_status::{StatusEmitter, status_emit};
 
 pub async fn set_input_path() -> Result<PathBuf> {
     let file = AsyncFileDialog::new()
@@ -38,21 +37,41 @@ pub async fn set_output_path() -> Result<PathBuf> {
 }
 
 pub async fn process_app(path: PathBuf, emitter: Option<Arc<StatusEmitter>>) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || Cleaner::new_profile(&path, emitter.as_deref()))
-        .await
-        .map_err(|e| {
-            ErrorKind::failed()
-                .with_summary("Add application failed")
-                .with_reason(e.to_string())
-        })?
+    let cleaner = tokio::task::spawn_blocking(move || {
+        let progress_hook = |msg: std::borrow::Cow<'static, str>| {
+            status_emit!(
+                emitter.as_deref(),
+                message: msg,
+            );
+        };
+
+        let cleaner = Cleaner::new_profile(&path, Some(progress_hook))?;
+
+        Ok(cleaner)
+    })
+    .await
+    .map_err(|e| {
+        ErrorKind::failed()
+            .with_summary("Add application failed")
+            .with_reason(e.to_string())
+    })??;
+
+    Ok(cleaner)
 }
 
 pub async fn find_app_process_async(
     mut cleaner: Cleaner,
     emitter: Option<Arc<StatusEmitter>>,
 ) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || {
-        cleaner.find_app_process(emitter.as_deref())?;
+    let cleaner = tokio::task::spawn_blocking(move || {
+        let progress_hook = |msg: std::borrow::Cow<'static, str>| {
+            status_emit!(
+                emitter.as_deref(),
+                message: msg,
+            );
+        };
+        cleaner.find_app_process(Some(progress_hook))?;
+
         Ok(cleaner)
     })
     .await
@@ -60,36 +79,93 @@ pub async fn find_app_process_async(
         ErrorKind::failed()
             .with_summary("Find process failed")
             .with_reason(e.to_string())
-    })?
+    })??;
+
+    Ok(cleaner)
 }
 
 pub async fn kill_app_process_async(
     cleaner: Arc<Cleaner>,
     emitter: Option<Arc<StatusEmitter>>,
 ) -> Result<()> {
-    tokio::task::spawn_blocking(move || cleaner.kill_app_process(emitter.as_deref()))
-        .await
-        .map_err(|e| {
-            ErrorKind::failed()
-                .with_summary("Confirm and kill process failed")
-                .with_reason(e.to_string())
-        })?
+    tokio::task::spawn_blocking(move || {
+        let progress_hook = |cur: usize, total: usize| {
+            status_emit!(
+                emitter.as_deref(),
+                action: "Kill application process",
+                current: cur,
+                total: total,
+            );
+        };
+        cleaner.kill_app_process(Some(progress_hook))?;
+
+        Ok(cleaner)
+    })
+    .await
+    .map_err(|e| {
+        ErrorKind::failed()
+            .with_summary("Confirm and kill process failed")
+            .with_reason(e.to_string())
+    })??;
+
+    Ok(())
 }
 
 pub async fn scan_app_async(
     mut cleaner: Cleaner,
     emitter: Option<Arc<StatusEmitter>>,
 ) -> Result<Cleaner> {
-    tokio::task::spawn_blocking(move || {
-        cleaner.scan_app_profile(emitter.as_deref())?;
+    let app_name = cleaner
+        .as_app_profile()
+        .as_app_metadata()
+        .as_info()
+        .as_name()
+        .to_string();
+
+    status_emit!(
+        async,
+        emitter.as_deref(),
+        "Scanning logs and associated files for '{}'",
+        app_name
+    );
+
+    status_emit!(
+        async,
+        emitter.as_deref(),
+        action: "Started",
+        message: "Finding BOM logs...",
+    );
+
+    let emitter_cln_block = emitter.clone();
+    let cleaner = tokio::task::spawn_blocking(move || {
+        let progress_hook = |cur: usize, _path: &Path| {
+            status_emit!(
+                emitter_cln_block.as_deref(),
+                action: "Searching",
+                current: cur,
+            );
+        };
+
+        cleaner.scan_app_profile(progress_hook)?;
+
         Ok(cleaner)
     })
     .await
     .map_err(|e| {
         ErrorKind::failed()
             .with_summary("Scan failed")
-            .with_reason(e.to_string())
-    })?
+            .with_reason(format!("Task execution panicked: {}", e))
+    })??;
+
+    let total_founded = cleaner.as_app_profile().all_entries().len();
+    status_emit!(
+        async,
+        emitter.as_deref(),
+        action: "Completed",
+        message: format!("{} items found", total_founded),
+    );
+
+    Ok(cleaner)
 }
 
 pub async fn open_loc_async(path: PathBuf) -> Result<()> {

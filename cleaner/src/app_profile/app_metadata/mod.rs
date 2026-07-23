@@ -53,7 +53,7 @@
 mod info_plist;
 pub use info_plist::InfoPlist;
 
-use crate::error::{ErrorKind, Result};
+use crate::errors::{ErrorKind, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::path::{Path, PathBuf};
