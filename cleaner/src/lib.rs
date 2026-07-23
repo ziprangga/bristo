@@ -281,13 +281,6 @@ impl Cleaner {
                     killed_count += 1;
                 }
 
-                // Err(ErrorKind::Skipped(data)) => {
-                //     errors.push(data);
-                // }
-
-                // Err(ErrorKind::Failed(data)) => {
-                //     errors.push(data);
-                // }
                 Err(err) => {
                     errors.push(err);
                 }
