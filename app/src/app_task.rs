@@ -2,7 +2,7 @@ use rfd::AsyncFileDialog;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use cleaner::TrashEntry;
+// use cleaner::TrashEntry;
 use cleaner::{Cleaner, IconCache};
 use cleaner::{ErrorKind, Result};
 use simple_status::{StatusEmitter, status_emit};
@@ -157,7 +157,7 @@ pub async fn scan_app_async(
             .with_reason(format!("Task execution panicked: {}", e))
     })??;
 
-    let total_founded = cleaner.as_app_profile().all_entries().len();
+    let total_founded = cleaner.as_app_profile().path_entry().all_paths().len();
     status_emit!(
         async,
         emitter.as_deref(),
@@ -188,14 +188,17 @@ pub async fn save_bom_logs_async(cleaner: Cleaner, log_dir: PathBuf) -> Result<(
         })?
 }
 
-pub async fn trash_app_async(cleaner: Cleaner) -> Result<Vec<TrashEntry>> {
-    tokio::task::spawn_blocking(move || cleaner.trash_all_entry())
-        .await
-        .map_err(|e| {
-            ErrorKind::failed()
-                .with_summary("Move to trash failed")
-                .with_reason(e.to_string())
-        })?
+pub async fn trash_app_async(mut cleaner: Cleaner) -> Result<Cleaner> {
+    tokio::task::spawn_blocking(move || {
+        cleaner.move_to_trash()?;
+        Ok(cleaner)
+    })
+    .await
+    .map_err(|e| {
+        ErrorKind::failed()
+            .with_summary("Move to trash failed")
+            .with_reason(e.to_string())
+    })?
 }
 
 pub async fn get_icon_asset_async(path: PathBuf, target_size: f64) -> Result<IconCache> {

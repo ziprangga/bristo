@@ -65,24 +65,30 @@
 
 mod app_profile;
 mod errors;
+mod icon_cache;
 mod locations_scan;
+mod path_data;
 mod rules;
 mod scanner;
 mod syscom;
+mod trash_entry;
+
 pub use app_profile::AppLogReceipt;
-pub use app_profile::{AppAscFiles, AscData};
-pub use app_profile::{AppBtmFiles, BtmData};
-pub use app_profile::{AppMetadata, InfoPlist};
+pub use app_profile::AppMetadata;
+pub use app_profile::AppProfile;
+pub use app_profile::InfoPlist;
+pub use app_profile::PathEntry;
 pub use app_profile::{AppProcs, Proc};
-pub use app_profile::{AppProfile, FileEntry};
 pub use errors::{ErrorKind, Result};
+pub use icon_cache::IconCache;
 pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
+pub use path_data::{PathData, SourceKind};
 pub use rules::MatchRules;
+pub use trash_entry::TrashEntry;
 
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::borrow::Cow;
-use std::collections::HashMap;
 use std::path::Path;
 
 // /// Result classification for a trash operation.
@@ -177,43 +183,43 @@ use std::path::Path;
 //         }
 //     }
 // }
-#[derive(Debug, Clone)]
-pub struct TrashEntry {
-    entry: FileEntry,
-    error: Option<ErrorKind>,
-}
+// #[derive(Debug, Clone)]
+// pub struct TrashEntry {
+//     entry: FileEntry,
+//     error: Option<ErrorKind>,
+// }
 
-impl TrashEntry {
-    pub fn new(entry: FileEntry, error: Option<ErrorKind>) -> Self {
-        Self { entry, error }
-    }
+// impl TrashEntry {
+//     pub fn new(entry: FileEntry, error: Option<ErrorKind>) -> Self {
+//         Self { entry, error }
+//     }
 
-    pub fn error(&self) -> Option<&ErrorKind> {
-        self.error.as_ref()
-    }
+//     pub fn error(&self) -> Option<&ErrorKind> {
+//         self.error.as_ref()
+//     }
 
-    pub fn entry(&self) -> &FileEntry {
-        &self.entry
-    }
+//     pub fn entry(&self) -> &FileEntry {
+//         &self.entry
+//     }
 
-    pub fn into_entry(self) -> FileEntry {
-        self.entry
-    }
+//     pub fn into_entry(self) -> FileEntry {
+//         self.entry
+//     }
 
-    pub fn failed(entry: FileEntry, error: ErrorKind) -> Self {
-        Self {
-            entry,
-            error: Some(error),
-        }
-    }
+//     pub fn failed(entry: FileEntry, error: ErrorKind) -> Self {
+//         Self {
+//             entry,
+//             error: Some(error),
+//         }
+//     }
 
-    pub fn skipped(entry: FileEntry, error: ErrorKind) -> Self {
-        Self {
-            entry,
-            error: Some(error),
-        }
-    }
-}
+//     pub fn skipped(entry: FileEntry, error: ErrorKind) -> Self {
+//         Self {
+//             entry,
+//             error: Some(error),
+//         }
+//     }
+// }
 
 /// Application cleanup coordinator.
 ///
@@ -259,15 +265,27 @@ impl TrashEntry {
 #[derive(Debug, Default, Clone)]
 pub struct Cleaner {
     app_profile: AppProfile,
+    trash_entry: TrashEntry,
 }
 
 impl Cleaner {
     pub fn new(app_profile: AppProfile) -> Self {
-        Self { app_profile }
+        Self {
+            app_profile,
+            trash_entry: TrashEntry::default(),
+        }
     }
 
     pub fn as_app_profile(&self) -> &AppProfile {
         &self.app_profile
+    }
+
+    pub fn as_trash_entry(&self) -> &TrashEntry {
+        &self.trash_entry
+    }
+
+    pub fn as_trash_entry_mut(&mut self) -> &mut TrashEntry {
+        &mut self.trash_entry
     }
 
     pub fn new_profile<F>(path: &Path, progress: Option<F>) -> Result<Self>
@@ -281,7 +299,7 @@ impl Cleaner {
             progress_hook(Cow::Owned(format!("Found profile for '{}'", app_name)));
         }
 
-        Ok(Self { app_profile })
+        Ok(Self::new(app_profile))
     }
 
     pub fn find_app_process<F>(&mut self, progress: Option<F>) -> Result<&Self>
@@ -366,14 +384,6 @@ impl Cleaner {
         Ok(self)
     }
 
-    /// Replace Associate Files
-    pub fn replace_remaining_entries(&mut self, entries: Vec<TrashEntry>) {
-        let file_entries: Vec<FileEntry> =
-            entries.into_iter().map(TrashEntry::into_entry).collect();
-
-        self.app_profile.replace_file_entries(file_entries);
-    }
-
     /// Save BOM logs of the current app to the given folder
     pub fn save_bom_logs(&self, log_dir: &Path) -> Result<()> {
         // Determine the folder
@@ -412,80 +422,35 @@ impl Cleaner {
     }
 
     /// listed of FileEntry, all path that associate to the app
-    pub fn all_entries_enumerate(&self) -> Vec<(usize, FileEntry)> {
+    pub fn all_entries_enumerate(&self) -> Vec<(usize, PathData)> {
         self.app_profile
-            .all_entries()
+            .path_entry()
+            .all_paths()
             .into_iter()
             .enumerate()
             .collect()
     }
 
-    /// Move all associated files including the app itself to trash
-    pub fn trash_all_entry(&self) -> Result<Vec<TrashEntry>> {
-        let entries = self.app_profile.all_entries();
+    pub fn move_to_trash(&mut self) -> Result<()> {
+        let trash_entry = TrashEntry::move_to_trash(self.app_profile.path_entry())?;
 
-        let mut asc_paths = Vec::new();
-        let mut btm_paths = Vec::new();
-        let mut app_paths = Vec::new();
+        let failed: Vec<PathData> = trash_entry
+            .failed_path()
+            .iter()
+            .map(|(path, _)| path.clone())
+            .collect();
 
-        for entry in &entries {
-            match entry {
-                FileEntry::AscFiles(_) => {
-                    asc_paths.push(entry.as_path().to_path_buf());
-                }
-
-                FileEntry::BtmFiles(_) => {
-                    btm_paths.push(entry.as_path().to_path_buf());
-                }
-
-                FileEntry::AppPath(_) => {
-                    app_paths.push(entry.as_path().to_path_buf());
-                }
-            }
+        if !failed.is_empty() {
+            self.app_profile.update_path_entry(&failed);
         }
 
-        let mut results: Vec<TrashEntry> = Vec::new();
+        self.trash_entry = trash_entry;
 
-        // trash ASC
-        let asc_failed = syscom::trash_files_nsfilemanager(&asc_paths)?;
-        for (failed_path, reason) in &asc_failed {
-            if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
-                results.push(TrashEntry::failed(entry.clone(), reason.clone()));
-            }
-        }
+        Ok(())
+    }
 
-        // trash BTM
-        let btm_failed = syscom::trash_files_nsfilemanager(&btm_paths)?;
-        for (failed_path, reason) in &btm_failed {
-            if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
-                results.push(TrashEntry::failed(entry.clone(), reason.clone()));
-            }
-        }
-
-        // trash AppPath only when other have no failures
-        let can_trash_app = asc_failed.is_empty() && btm_failed.is_empty();
-        if can_trash_app {
-            let app_failed = syscom::trash_files_nsfilemanager(&app_paths)?;
-
-            for (failed_path, reason) in &app_failed {
-                if let Some(entry) = entries.iter().find(|e| e.as_path() == failed_path) {
-                    results.push(TrashEntry::failed(entry.clone(), reason.clone()));
-                }
-            }
-        } else {
-            for entry in &entries {
-                if matches!(entry, FileEntry::AppPath(_)) {
-                    results.push(TrashEntry::skipped(
-                        entry.clone(),
-                        // "because some associated files failed to move".to_string(),
-                        ErrorKind::skipped()
-                            .with_reason("because some associated files failed to move"),
-                    ));
-                }
-            }
-        }
-
-        Ok(results)
+    pub fn restore_moved_path(&self) -> Result<()> {
+        Ok(println!("to do"))
     }
 
     pub fn show_in_finder(path: &Path) -> Result<()> {
@@ -494,142 +459,5 @@ impl Cleaner {
 
     pub fn reset(&mut self) {
         self.app_profile.reset();
-    }
-}
-
-/// Cached icon storage for UI consumers.
-///
-/// Doc:
-/// Stores platform-generated icon images as raw RGBA buffers
-/// keyed by file type or application path.
-///
-/// Supported icon categories:
-///
-/// - Application bundles (`*.app`).
-/// - System folder icons.
-/// - Generic file icons.
-///
-/// The cache stores:
-///
-/// - Width.
-/// - Height.
-/// - RGBA pixel data.
-///
-/// Consumers can retrieve icon data as:
-///
-/// - Borrowed RGBA slices.
-/// - Owned RGBA buffers.
-/// - Generated RGB buffers.
-///
-/// Note:
-/// Icon generation may require platform-specific system APIs.
-/// This type exists separately from `Cleaner` so that UI-related
-/// functionality remains independent from application cleanup logic.
-#[derive(Debug, Clone)]
-pub struct IconCache {
-    icon_cache: HashMap<String, (usize, usize, Vec<u8>)>,
-}
-
-impl IconCache {
-    pub fn new(path: &Path, target_size: f64) -> Option<Self> {
-        let path_str = path.to_str().unwrap_or("");
-
-        // 1. Determine the appropriate cache key dynamically
-        let cache_key = if path_str.ends_with(".app") {
-            path_str.to_string()
-        } else if path.is_dir() {
-            "__system_folder__".to_string()
-        } else {
-            path.extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("__system_generic_file__")
-                .to_string()
-        };
-
-        // Generate and load the owned icon data instantly
-        let icon = Self::load_icon_for_key(&cache_key, target_size)?;
-
-        // Initialize the HashMap and insert the resolved icon
-        let mut map = HashMap::new();
-        map.insert(cache_key, icon);
-
-        // Wrap the map in Self and return it
-        Some(Self { icon_cache: map })
-    }
-
-    pub fn icon_cache_owned(self) -> HashMap<String, (usize, usize, Vec<u8>)> {
-        self.icon_cache
-    }
-
-    // Get width for a specific file path icon
-    pub fn width(&self, path: &Path) -> Option<usize> {
-        let key = Self::get_cache_key(path);
-        self.icon_cache.get(&key).map(|(w, _, _)| *w)
-    }
-
-    // Get height for a specific file path icon
-    pub fn height(&self, path: &Path) -> Option<usize> {
-        let key = Self::get_cache_key(path);
-        self.icon_cache.get(&key).map(|(_, h, _)| *h)
-    }
-
-    // Get an immutable reference to the raw RGBA slice
-    pub fn rgba_bytes(&self, path: &Path) -> Option<&[u8]> {
-        let key = Self::get_cache_key(path);
-        self.icon_cache
-            .get(&key)
-            .map(|(_, _, bytes)| bytes.as_slice())
-    }
-
-    // Consume the cache and extract a specific icon's raw vector allocation
-    pub fn into_rgba_bytes(mut self, path: &Path) -> Option<Vec<u8>> {
-        let key = Self::get_cache_key(path);
-        self.icon_cache.remove(&key).map(|(_, _, bytes)| bytes)
-    }
-
-    // Build an RGB vector on the fly from the stored RGBA tuple data
-    pub fn rgb_bytes(&self, path: &Path) -> Option<Vec<u8>> {
-        let key = Self::get_cache_key(path);
-        let (width, height, rgba_bytes) = self.icon_cache.get(&key)?;
-
-        let mut rgb = Vec::with_capacity(width * height * 3);
-
-        // Chunk through data 4 bytes at a time (R, G, B, A)
-        for chunk in rgba_bytes.chunks_exact(4) {
-            rgb.push(chunk[0]); // R
-            rgb.push(chunk[1]); // G
-            rgb.push(chunk[2]); // B
-            // chunk[3] (Alpha) is intentionally skipped
-        }
-
-        Some(rgb)
-    }
-
-    pub fn get_cache_key(path: &Path) -> String {
-        let path_str = path.to_str().unwrap_or("");
-
-        if path_str.ends_with(".app") {
-            path_str.to_string()
-        } else if path.is_dir() {
-            "__system_folder__".to_string()
-        } else {
-            path.extension()
-                .and_then(|ext| ext.to_str())
-                .unwrap_or("__system_generic_file__")
-                .to_string()
-        }
-    }
-
-    fn load_icon_for_key(key: &str, target_size: f64) -> Option<(usize, usize, Vec<u8>)> {
-        let ns_image = if key.ends_with(".app") {
-            syscom::get_installed_app_icon_by_path(key)
-        } else if key == "__system_folder__" {
-            syscom::get_default_folder_icon()
-        } else {
-            syscom::get_default_file_icon()
-        };
-
-        let (width, height, bytes) = syscom::ns_image_to_rgba_bytes(&ns_image, target_size)?;
-        Some((width, height, bytes))
     }
 }

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use crate::app_modal::{ModalAsk, ModalAskMessage};
 use cleaner::Cleaner;
 use cleaner::Result;
-use cleaner::TrashEntry;
+// use cleaner::TrashEntry;
 
 use crate::app_status::Status;
 
@@ -21,23 +21,24 @@ pub enum AppMessage {
     DropApp(PathBuf),
     AppPath,
     ProcessApp(PathBuf),
-    ScanApp(Result<Cleaner>),
-    ReScanApp,
-
+    FindProcs(Cleaner),
+    ConfirmKill(Cleaner),
     ModalAsk(ModalAskMessage),
-    FindProcs(Result<Cleaner>),
-    ConfirmKill(Result<Cleaner>),
     KillFinished(Result<()>, Cleaner),
 
+    ScanApp(Cleaner),
+    ReScanApp,
     UpdateCleaner(Cleaner),
+
     IconLoaded(IconCache),
     OpenSelectedPath(usize),
 
     ExportBomFilesLoc,
-    ExportBomFiles(Result<PathBuf>),
+    ExportBomFiles(PathBuf),
 
     MoveToTrash,
-    UpdateEntryFiles(Result<Vec<TrashEntry>>),
+    UpdateEntryFiles(Cleaner),
+
     ClearList,
 
     ShowStatus(Status),

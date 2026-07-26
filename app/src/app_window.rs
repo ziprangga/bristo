@@ -67,13 +67,14 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
 
             // ===============
 
-            let display_path = match std::env::var("HOME") {
-                Ok(home) => match path.strip_prefix(&home) {
-                    Ok(stripped) => format!("~/{}", stripped.to_string_lossy()),
-                    Err(_) => path.to_string_lossy().to_string(),
-                },
-                Err(_) => path.to_string_lossy().to_string(),
-            };
+            // let display_path = match std::env::var("HOME") {
+            //     Ok(home) => match path.strip_prefix(&home) {
+            //         Ok(stripped) => format!("~/{}", stripped.to_string_lossy()),
+            //         Err(_) => path.to_string_lossy().to_string(),
+            //     },
+            //     Err(_) => path.to_string_lossy().to_string(),
+            // };
+            let display_path = entry.to_string();
 
             // ===================
 

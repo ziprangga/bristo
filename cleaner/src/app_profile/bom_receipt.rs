@@ -21,7 +21,7 @@
 //! The module is built around two primary types:
 //!
 //! - `AppLogReceipt` stores discovered receipt records.
-//! - `ReceiptData` represents a single receipt or BOM entry.
+//! - `PathData` represents a single receipt or BOM entry.
 //!
 //! Discovery focuses on macOS package receipts, particularly
 //! BOM (Bill of Materials) files generated during package
@@ -48,13 +48,11 @@
 //! or whether they are actively used by the application.
 //!..
 
-mod receipt_data;
-pub use receipt_data::ReceiptData;
-
 use std::path::{Path, PathBuf};
 
-use crate::app_profile::app_metadata::AppMetadata;
+use crate::app_profile::metadata::AppMetadata;
 use crate::locations_scan::ReceiptsLocations;
+use crate::path_data::PathData;
 use crate::rules::MatchRules;
 use crate::scanner::construct_scanner_result;
 use crate::scanner::scan_general;
@@ -76,19 +74,19 @@ use crate::scanner::scan_general;
 /// BTM files, and runtime processes.
 #[derive(Debug, Default, Clone)]
 pub struct AppLogReceipt {
-    bom_files: Vec<ReceiptData>,
+    bom_files: Vec<PathData>,
 }
 
 impl AppLogReceipt {
     /// New contruct
-    pub fn new(bom_files: &[ReceiptData]) -> Self {
+    pub fn new(bom_files: &[PathData]) -> Self {
         Self {
             bom_files: bom_files.to_vec(),
         }
     }
 
     //// get bom file as reference
-    pub fn as_bom_files(&self) -> &[ReceiptData] {
+    pub fn as_bom_files(&self) -> &[PathData] {
         &self.bom_files
     }
 
@@ -103,7 +101,7 @@ impl AppLogReceipt {
     }
 
     /// Update btm files with given list
-    pub fn set_bom_files(&mut self, btm_data: Vec<ReceiptData>) {
+    pub fn set_bom_files(&mut self, btm_data: Vec<PathData>) {
         self.bom_files = btm_data;
     }
 
@@ -159,7 +157,7 @@ impl AppLogReceipt {
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.bom_files.clear();
-        let results: Vec<ReceiptData> = scan_general(
+        let results: Vec<PathData> = scan_general(
             locations.as_paths(),
             1,
             |n, path| progress(n, path),
@@ -177,11 +175,11 @@ impl AppLogReceipt {
                     .file_name()
                     .map(|n| n.to_string_lossy().to_string())
                     .unwrap_or_default();
-                ReceiptData::new(path_buf, name)
+                PathData::new_without_kind(path_buf, name)
             },
         );
 
-        let filtered = construct_scanner_result(results, None, |item: &ReceiptData| item.as_path());
+        let filtered = construct_scanner_result(results, None, |item: &PathData| item.as_path());
 
         self.set_bom_files(filtered);
     }

@@ -55,71 +55,73 @@
 //! exist to organize discovery results and scanning logic.
 //!..
 
-mod app_asc_files;
-mod app_btm;
-mod app_log_receipt;
-mod app_metadata;
-mod app_proc;
+mod bom_receipt;
+mod info_plist;
+mod metadata;
+mod path_entry;
+mod processed;
 
-pub use app_asc_files::{AppAscFiles, AscData};
-pub use app_btm::{AppBtmFiles, BtmData};
-pub use app_log_receipt::AppLogReceipt;
-pub use app_metadata::{AppMetadata, InfoPlist};
-pub use app_proc::{AppProcs, Proc};
+pub use bom_receipt::AppLogReceipt;
+pub use info_plist::InfoPlist;
+pub use metadata::AppMetadata;
+pub use path_entry::PathEntry;
+
+pub use processed::{AppProcs, Proc};
 
 use crate::errors::Result;
 use crate::locations_scan::BtmLocations;
 use crate::locations_scan::ReceiptsLocations;
 use crate::locations_scan::ScanLocations;
-use crate::scanner::construct_scanner_result;
+use crate::path_data::PathData;
+// use crate::scanner::construct_scanner_result;
 use mini_logger::debug;
 use std::path::Path;
 
-/// Unified representation of a discovered filesystem entry.
-///
-/// Doc:
-/// Represents a file or directory associated with an application.
-///
-/// Variants:
-///
-/// - `AppPath` represents the application bundle itself.
-/// - `AscFiles` represents associated application files.
-/// - `BtmFiles` represents background task management files.
-///
-/// The type provides a common interface for retrieving names
-/// and filesystem paths regardless of the underlying source.
-///
-/// This abstraction allows scanning, reporting, UI rendering,
-/// and cleanup operations to operate on a single collection of
-/// entries without needing to know their specific category.
-///
-/// Note:
-/// `FileEntry` is primarily used as the merged output of
-/// `AppProfile::all_entries()`.
-#[derive(Debug, Clone)]
-pub enum FileEntry {
-    AppPath(AppMetadata),
-    AscFiles(AscData),
-    BtmFiles(BtmData),
-}
+// /// Unified representation of a discovered filesystem entry.
+// ///
+// /// Doc:
+// /// Represents a file or directory associated with an application.
+// ///
+// /// Variants:
+// ///
+// /// - `AppPath` represents the application bundle itself.
+// /// - `AscFiles` represents associated application files.
+// /// - `BtmFiles` represents background task management files.
+// ///
+// /// The type provides a common interface for retrieving names
+// /// and filesystem paths regardless of the underlying source.
+// ///
+// /// This abstraction allows scanning, reporting, UI rendering,
+// /// and cleanup operations to operate on a single collection of
+// /// entries without needing to know their specific category.
+// ///
+// /// Note:
+// /// `FileEntry` is primarily used as the merged output of
+// /// `AppProfile::all_entries()`.
+// #[derive(Debug, Clone)]
+// pub enum FileEntry {
+//     AppPath(AppMetadata),
+//     AscFiles(PathData),
+//     BtmFiles(PathData),
+// }
 
-impl FileEntry {
-    pub fn as_path(&self) -> &Path {
-        match self {
-            Self::AppPath(v) => v.as_path(),
-            Self::AscFiles(v) => v.as_path(),
-            Self::BtmFiles(v) => v.as_path(),
-        }
-    }
+// impl FileEntry {
+//     pub fn as_path(&self) -> &Path {
+//         match self {
+//             Self::AppPath(v) => v.as_path(),
+//             Self::AscFiles(v) => v.as_path(),
+//             Self::BtmFiles(v) => v.as_path(),
+//         }
+//     }
 
-    pub fn as_name(&self) -> &str {
-        match self {
-            Self::AppPath(v) => v.as_info().as_name(),
-            Self::AscFiles(v) => v.as_name(),
-            Self::BtmFiles(v) => v.as_name(),
-        }
-    }
-}
+//     pub fn as_name(&self) -> &str {
+//         match self {
+//             Self::AppPath(v) => v.as_info().as_name(),
+//             Self::AscFiles(v) => v.as_name(),
+//             Self::BtmFiles(v) => v.as_name(),
+//         }
+//     }
+// }
 
 /// Aggregated application discovery state.
 ///
@@ -171,8 +173,7 @@ pub struct AppProfile {
     app_metadata: AppMetadata,
     app_procs: AppProcs,
     app_log_receipt: AppLogReceipt,
-    app_asc_files: AppAscFiles,
-    app_btm_files: AppBtmFiles,
+    path_entry: PathEntry,
 }
 
 impl AppProfile {
@@ -180,27 +181,25 @@ impl AppProfile {
         app_metadata: AppMetadata,
         app_procs: AppProcs,
         app_log_receipt: AppLogReceipt,
-        app_asc_files: AppAscFiles,
-        app_btm_files: AppBtmFiles,
+        path_entry: PathEntry,
     ) -> Self {
         Self {
             app_metadata,
             app_procs,
             app_log_receipt,
-            app_asc_files,
-            app_btm_files,
+            path_entry,
         }
     }
 
     pub fn from_path(app_path: &Path) -> Result<Self> {
         let app_metadata = AppMetadata::from_path(app_path)?;
+        let path_entry = PathEntry::from_path_and_metadata(app_path, &app_metadata);
 
         Ok(Self {
             app_metadata: app_metadata,
             app_procs: AppProcs::default(),
             app_log_receipt: AppLogReceipt::default(),
-            app_asc_files: AppAscFiles::default(),
-            app_btm_files: AppBtmFiles::default(),
+            path_entry: path_entry,
         })
     }
 
@@ -214,14 +213,6 @@ impl AppProfile {
 
     pub fn as_app_log_receipt(&self) -> &AppLogReceipt {
         &self.app_log_receipt
-    }
-
-    pub fn as_app_asc_files(&self) -> &AppAscFiles {
-        &self.app_asc_files
-    }
-
-    pub fn as_app_btm_files(&self) -> &AppBtmFiles {
-        &self.app_btm_files
     }
 
     pub fn find_pid_and_command(&mut self) {
@@ -252,7 +243,7 @@ impl AppProfile {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        self.app_asc_files
+        self.path_entry
             .scan_asc_files(&self.app_metadata, locations, progress);
     }
 
@@ -262,7 +253,7 @@ impl AppProfile {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        self.app_btm_files
+        self.path_entry
             .scan_btm_files(&self.app_metadata, locations, progress);
     }
 
@@ -289,31 +280,34 @@ impl AppProfile {
     /// The returned collection represents the current state of
     /// the profile and reflects any modifications made through
     /// `replace_file_entries()`.
-    pub fn all_entries(&self) -> Vec<FileEntry> {
-        let mut entries = Vec::new();
+    // pub fn all_entries(&self) -> Vec<FileEntry> {
+    //     let mut entries = Vec::new();
 
-        // AscFiles
-        entries.extend(
-            self.app_asc_files
-                .as_asc_files()
-                .iter()
-                .cloned()
-                .map(FileEntry::AscFiles),
-        );
+    //     // AscFiles
+    //     entries.extend(
+    //         self.app_asc_files
+    //             .as_asc_files()
+    //             .iter()
+    //             .cloned()
+    //             .map(FileEntry::AscFiles),
+    //     );
 
-        // BtmFiles
-        entries.extend(
-            self.app_btm_files
-                .as_btm_files()
-                .iter()
-                .cloned()
-                .map(FileEntry::BtmFiles),
-        );
+    //     // BtmFiles
+    //     entries.extend(
+    //         self.app_btm_files
+    //             .as_btm_files()
+    //             .iter()
+    //             .cloned()
+    //             .map(FileEntry::BtmFiles),
+    //     );
 
-        // AppPath
-        entries.push(FileEntry::AppPath(self.app_metadata.clone()));
+    //     // AppPath
+    //     entries.push(FileEntry::AppPath(self.app_metadata.clone()));
 
-        construct_scanner_result(entries, None, |entry| entry.as_path())
+    //     construct_scanner_result(entries, None, |entry| entry.as_path())
+    // }
+    pub fn path_entry(&self) -> &PathEntry {
+        &self.path_entry
     }
 
     /// Replaces discovered file entries.
@@ -335,33 +329,36 @@ impl AppProfile {
     /// Note:
     /// Entries not present in the provided collection are removed
     /// from the profile state.
-    pub fn replace_file_entries(&mut self, entries: Vec<FileEntry>) {
-        let mut app_metadata = None;
-        let mut asc_files = Vec::new();
-        let mut btm_files = Vec::new();
+    // pub fn replace_file_entries(&mut self, entries: Vec<FileEntry>) {
+    //     let mut app_metadata = None;
+    //     let mut asc_files = Vec::new();
+    //     let mut btm_files = Vec::new();
 
-        for entry in entries {
-            match entry {
-                FileEntry::AppPath(app) => {
-                    app_metadata = Some(app);
-                }
+    //     for entry in entries {
+    //         match entry {
+    //             FileEntry::AppPath(app) => {
+    //                 app_metadata = Some(app);
+    //             }
 
-                FileEntry::BtmFiles(file) => {
-                    btm_files.push(file);
-                }
+    //             FileEntry::BtmFiles(file) => {
+    //                 btm_files.push(file);
+    //             }
 
-                FileEntry::AscFiles(file) => {
-                    asc_files.push(file);
-                }
-            }
-        }
+    //             FileEntry::AscFiles(file) => {
+    //                 asc_files.push(file);
+    //             }
+    //         }
+    //     }
 
-        if let Some(app) = app_metadata {
-            self.app_metadata = app;
-        }
+    //     if let Some(app) = app_metadata {
+    //         self.app_metadata = app;
+    //     }
 
-        self.app_asc_files.set_asc_files(asc_files);
-        self.app_btm_files.set_btm_files(btm_files);
+    //     self.app_asc_files.set_asc_files(asc_files);
+    //     self.app_btm_files.set_btm_files(btm_files);
+    // }
+    pub fn update_path_entry(&mut self, failed: &[PathData]) {
+        self.path_entry.update_entry(failed);
     }
 
     /// Clears all stored application state.
@@ -384,7 +381,6 @@ impl AppProfile {
         self.app_metadata = AppMetadata::default();
         self.app_procs = AppProcs::default();
         self.app_log_receipt = AppLogReceipt::default();
-        self.app_asc_files = AppAscFiles::default();
-        self.app_btm_files = AppBtmFiles::default();
+        self.path_entry = PathEntry::default()
     }
 }

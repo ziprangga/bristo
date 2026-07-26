@@ -16,7 +16,6 @@ use cleaner::ErrorKind;
 use iced::{Subscription, Task, futures::StreamExt};
 use mini_logger::debug;
 use simple_status::{ChannelKind, create_channels};
-use std::collections::HashMap;
 use std::sync::Arc;
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
@@ -47,7 +46,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     async move {
                         let result = process_app(path_input, Some(emitter)).await;
                         match result {
-                            Ok(cleaner) => AppMessage::FindProcs(Ok(cleaner)),
+                            Ok(cleaner) => AppMessage::FindProcs(cleaner),
                             Err(err) => {
                                 let failure_status = Status::new().with_status_error(err);
                                 AppMessage::ShowStatus(failure_status)
@@ -71,19 +70,20 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             Task::batch(vec![add_app, status_task])
         }
 
-        AppMessage::FindProcs(result) => {
+        AppMessage::FindProcs(cleaner) => {
             let channel = create_channels(100, ChannelKind::Mpsc);
-            if let Ok(cleaner) = result {
-                let emitter = channel.get_emitter();
 
-                let find_task = Task::perform(
+            let emitter = channel.get_emitter();
+
+            let find_task =
+                Task::perform(
                     find_app_process_async(cleaner, Some(emitter)),
                     |res| match res {
                         Ok(cleaner) => {
                             if cleaner.as_app_profile().as_app_procs().is_empty() {
-                                AppMessage::ScanApp(Ok(cleaner))
+                                AppMessage::ScanApp(cleaner)
                             } else {
-                                AppMessage::ConfirmKill(Ok(cleaner))
+                                AppMessage::ConfirmKill(cleaner)
                             }
                         }
                         Err(err) => {
@@ -93,27 +93,23 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     },
                 );
 
-                let progress_task = channel
-                    .stream()
-                    .map(|s| {
-                        Task::stream(s.map(|event| {
-                            let wrapped_status = Status::new().with_status_event(event);
-                            AppMessage::ShowStatus(wrapped_status)
-                        }))
-                    })
-                    .unwrap_or_else(Task::none);
+            let progress_task = channel
+                .stream()
+                .map(|s| {
+                    Task::stream(s.map(|event| {
+                        let wrapped_status = Status::new().with_status_event(event);
+                        AppMessage::ShowStatus(wrapped_status)
+                    }))
+                })
+                .unwrap_or_else(Task::none);
 
-                Task::batch(vec![find_task, progress_task])
-            } else {
-                Task::none()
-            }
+            Task::batch(vec![find_task, progress_task])
         }
 
-        AppMessage::ConfirmKill(result) => {
-            if let Ok(cleaner) = result {
-                state.pending_cleaner = Some(cleaner);
+        AppMessage::ConfirmKill(cleaner) => {
+            state.pending_cleaner = Some(cleaner);
 
-                state.show_modal_ask.set_message(format!(
+            state.show_modal_ask.set_message(format!(
                     "The app '{}' is still running.\nDo you want to kill its running process?\nBe careful to save your work first before continuing.",
                     state.pending_cleaner
                         .as_ref()
@@ -124,10 +120,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         .as_name()
                 ));
 
-                Task::none()
-            } else {
-                Task::none()
-            }
+            Task::none()
         }
 
         AppMessage::ModalAsk(msg) => match msg {
@@ -139,7 +132,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
                 let cleaner = state.pending_cleaner.take().unwrap();
                 if !answer {
-                    return Task::done(AppMessage::ScanApp(Ok(cleaner)));
+                    return Task::done(AppMessage::ScanApp(cleaner));
                 }
 
                 let emitter = channel.get_emitter();
@@ -175,37 +168,35 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
             Task::batch(vec![
                 Task::done(AppMessage::ShowStatus(status)),
-                Task::done(AppMessage::ScanApp(Ok(cleaner))),
+                Task::done(AppMessage::ScanApp(cleaner)),
             ])
         }
 
         AppMessage::ScanApp(cleaner) => {
             let channel = create_channels(100, ChannelKind::Mpsc);
-            if let Ok(app_input) = cleaner {
-                let emitter = channel.get_emitter();
 
-                let scan_task =
-                    Task::perform(scan_app_async(app_input, Some(emitter)), |res| match res {
-                        Ok(cleaner) => AppMessage::UpdateCleaner(cleaner),
-                        Err(err) => {
-                            let event = Status::new().with_status_error(err);
-                            AppMessage::ShowStatus(event)
-                        }
-                    });
+            let emitter = channel.get_emitter();
 
-                let progress_task = channel
-                    .stream()
-                    .map(|s| {
-                        Task::stream(s.map(|status_event| {
-                            let wrapped_status = Status::new().with_status_event(status_event);
-                            AppMessage::ShowStatus(wrapped_status)
-                        }))
-                    })
-                    .unwrap_or_else(Task::none);
+            let scan_task =
+                Task::perform(scan_app_async(cleaner, Some(emitter)), |res| match res {
+                    Ok(cleaner) => AppMessage::UpdateCleaner(cleaner),
+                    Err(err) => {
+                        let event = Status::new().with_status_error(err);
+                        AppMessage::ShowStatus(event)
+                    }
+                });
 
-                return Task::batch(vec![scan_task, progress_task]);
-            }
-            Task::none()
+            let progress_task = channel
+                .stream()
+                .map(|s| {
+                    Task::stream(s.map(|status_event| {
+                        let wrapped_status = Status::new().with_status_event(status_event);
+                        AppMessage::ShowStatus(wrapped_status)
+                    }))
+                })
+                .unwrap_or_else(Task::none);
+
+            return Task::batch(vec![scan_task, progress_task]);
         }
 
         AppMessage::UpdateCleaner(cleaner) => {
@@ -272,116 +263,55 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         }
 
         AppMessage::ExportBomFilesLoc => Task::perform(set_output_path(), |res| match res {
-            Ok(path) => AppMessage::ExportBomFiles(Ok(path)),
+            Ok(path) => AppMessage::ExportBomFiles(path),
             Err(e) => {
                 let event = Status::new().with_status_error(e);
                 AppMessage::ShowStatus(event)
             }
         }),
 
-        AppMessage::ExportBomFiles(result) => match result {
-            Ok(path) => {
-                let cleaner = state.cleaner.clone();
-                Task::perform(save_bom_logs_async(cleaner, path), |res| match res {
-                    Ok(()) => {
-                        let event =
-                            Status::new().with_status_success("BOM file saved successfully");
-                        AppMessage::ShowStatus(event)
-                    }
-                    Err(err) => {
-                        let event = Status::new().with_status_error(err);
-                        AppMessage::ShowStatus(event)
-                    }
-                })
-            }
-            Err(e) => {
-                let event = Status::new().with_status_error(e);
-                Task::done(AppMessage::ShowStatus(event))
-            }
-        },
-
-        AppMessage::MoveToTrash => {
+        AppMessage::ExportBomFiles(path) => {
             let cleaner = state.cleaner.clone();
-            Task::perform(trash_app_async(cleaner), |res| match res {
-                Ok(remaining_entry) => AppMessage::UpdateEntryFiles(Ok(remaining_entry)),
-                Err(err) => AppMessage::UpdateEntryFiles(Err(err)),
+            Task::perform(save_bom_logs_async(cleaner, path), |res| match res {
+                Ok(()) => {
+                    let event = Status::new().with_status_success("BOM file saved successfully");
+                    AppMessage::ShowStatus(event)
+                }
+                Err(err) => {
+                    let event = Status::new().with_status_error(err);
+                    AppMessage::ShowStatus(event)
+                }
             })
         }
 
-        AppMessage::UpdateEntryFiles(result) => {
-            match result {
-                Ok(remaining_entries) => {
-                    if remaining_entries.is_empty() {
-                        state.reset();
-                        state.show_status = Status::new().with_status_success("App moved to Trash");
-                    } else {
-                        state
-                            .cleaner
-                            .replace_remaining_entries(remaining_entries.clone());
+        AppMessage::MoveToTrash => {
+            let cleaner = std::mem::take(&mut state.cleaner);
 
-                        let mut missing = 0usize;
-                        let mut grouped: HashMap<ErrorKind, usize> = HashMap::new();
+            Task::perform(trash_app_async(cleaner), |res| match res {
+                Ok(cleaner) => AppMessage::UpdateEntryFiles(cleaner),
+                Err(err) => AppMessage::ShowStatus(Status::new().with_status_error(err)),
+            })
+        }
 
-                        for e in &remaining_entries {
-                            let path = e.entry().as_path();
+        AppMessage::UpdateEntryFiles(cleaner) => {
+            state.cleaner = cleaner;
 
-                            if !path.exists() {
-                                missing += 1;
-                                continue;
-                            }
+            let failed = state.cleaner.as_trash_entry().failed_path();
 
-                            // let reason = e.reason().unwrap_or("Unknown").to_string();
+            if failed.is_empty() {
+                state.show_status = Status::new().with_status_success("App moved to Trash");
+            } else {
+                let reason = failed
+                    .iter()
+                    .map(|(path, error)| format!("{}: {}", path.to_string(), error))
+                    .collect::<Vec<_>>()
+                    .join("\n");
 
-                            // *grouped.entry((e.status(), reason)).or_insert(0) += 1;
-                            if let Some(error) = e.error() {
-                                *grouped.entry(error.clone()).or_insert(0) += 1;
-                            }
-                        }
+                let error = ErrorKind::failed()
+                    .with_summary("Not moved")
+                    .with_reason(reason);
 
-                        let mut items: Vec<(ErrorKind, usize)> = grouped.into_iter().collect();
-
-                        // items.sort_by_key(|((status, _reason), _count)| match status {
-                        //     TrashStatus::Failed => 0,
-                        //     TrashStatus::Skipped => 1,
-                        // });
-                        items.sort_by_key(|(error, _count)| error.priority());
-
-                        let mut report = Vec::new();
-
-                        report.push(format!("{} item not moved", remaining_entries.len()));
-
-                        if missing > 0 {
-                            report.push(format!("{} items path not exist", missing));
-                        }
-
-                        // for ((status, reason), count) in items {
-                        //     let label = match status {
-                        //         TrashStatus::Failed => "failed",
-                        //         TrashStatus::Skipped => "skipped",
-                        //     };
-
-                        //     report.push(format!("{} items {}: {}", count, label, reason));
-                        // }
-
-                        for (error, count) in items {
-                            report.push(format!(
-                                "{} items {}: {}",
-                                count,
-                                error.kind().as_str(),
-                                error.reason().unwrap_or("Unknown")
-                            ));
-                        }
-
-                        let report_error = cleaner::ErrorKind::failed()
-                            .with_summary("Some assets could not be moved")
-                            .with_reason(report.join("\n"));
-                        state.show_status = Status::new().with_status_error(report_error);
-                    }
-                }
-
-                Err(err_msg) => {
-                    state.show_status = Status::new().with_status_error(err_msg);
-                }
+                state.show_status = Status::new().with_status_error(error);
             }
 
             Task::none()
@@ -393,7 +323,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
         }
 
         AppMessage::ShowStatus(new_status) => {
-            // state.show_status = new_status;
             state.show_status.update_status(new_status);
             Task::none()
         }

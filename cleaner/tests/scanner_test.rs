@@ -124,13 +124,14 @@ fn test_kill_processes_safe() -> cleaner::Result<()> {
         "NonExistent".to_string(),
         "example".to_string(),
     );
-    let app_metadata = cleaner::AppMetadata::new(app_path, info_plist);
+    let app_metadata = cleaner::AppMetadata::new(info_plist);
+    let path_entry = cleaner::PathEntry::from_path_and_metadata(&app_path, &app_metadata);
+
     let app_profile = cleaner::AppProfile::new(
         app_metadata,
         cleaner::AppProcs::default(),
         cleaner::AppLogReceipt::default(),
-        cleaner::AppAscFiles::default(),
-        cleaner::AppBtmFiles::default(),
+        path_entry,
     );
 
     let mut cleaner_instant = cleaner::Cleaner::new(app_profile);

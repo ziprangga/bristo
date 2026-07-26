@@ -50,13 +50,11 @@
 //! operations.
 //!..
 
-mod info_plist;
-pub use info_plist::InfoPlist;
-
+use crate::app_profile::info_plist::InfoPlist;
 use crate::errors::{ErrorKind, Result};
 use mini_logger::debug;
 use rayon::prelude::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use walkdir::WalkDir;
 
 /// Application bundle metadata.
@@ -87,14 +85,13 @@ use walkdir::WalkDir;
 /// scanning system.
 #[derive(Debug, Default, Clone)]
 pub struct AppMetadata {
-    path: PathBuf,
     info: InfoPlist,
 }
 
 impl AppMetadata {
     /// new contruct
-    pub fn new(path: PathBuf, info: InfoPlist) -> Self {
-        Self { path, info }
+    pub fn new(info: InfoPlist) -> Self {
+        Self { info }
     }
 
     /// Constructs application metadata from an application bundle.
@@ -179,24 +176,11 @@ impl AppMetadata {
             info.as_organization(),
         );
 
-        Ok(Self {
-            path: app_path.to_path_buf(),
-            info,
-        })
-    }
-
-    //// get path reference
-    pub fn as_path(&self) -> &PathBuf {
-        &self.path
+        Ok(Self { info })
     }
 
     /// get info reference
     pub fn as_info(&self) -> &InfoPlist {
         &self.info
-    }
-
-    /// Update path app
-    pub fn set_app_path(&mut self, path: PathBuf) {
-        self.path = path;
     }
 }

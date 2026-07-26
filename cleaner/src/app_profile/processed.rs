@@ -46,14 +46,59 @@
 //! may change between scans.
 //!..
 
-mod proc;
-pub use proc::Proc;
-
-use crate::app_profile::app_metadata::AppMetadata;
+use crate::app_profile::metadata::AppMetadata;
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::ffi::OsString;
 use sysinfo::{ProcessesToUpdate, System};
+
+/// Running process information.
+///
+/// Doc:
+/// Represents a single process discovered during runtime
+/// scanning.
+///
+/// Each process stores:
+///
+/// - Process identifier (PID).
+/// - Full command line.
+/// - Process name.
+///
+/// The command line is retained because it often contains
+/// application identifiers that are not present in the
+/// process name alone.
+///
+/// Note:
+/// `Proc` is a lightweight snapshot of process information
+/// captured during scanning and does not maintain a live
+/// connection to the operating system.
+#[derive(Debug, Default, Clone)]
+pub struct Proc {
+    pid: i32,
+    command: String,
+    name: String,
+}
+
+impl Proc {
+    /// Contruct Proc
+    pub fn new(pid: i32, command: String, name: String) -> Self {
+        Self { pid, command, name }
+    }
+    /// get the copy of pid
+    pub fn pid(&self) -> i32 {
+        self.pid
+    }
+
+    /// get the reference of command
+    pub fn as_command(&self) -> &str {
+        &self.command
+    }
+
+    /// get the reference of process name
+    pub fn as_name(&self) -> &str {
+        &self.name
+    }
+}
 
 /// Collection of running application processes.
 ///
