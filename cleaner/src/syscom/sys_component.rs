@@ -154,7 +154,7 @@ pub fn kill_pid(pid: i32) -> Result<()> {
 /// Note:
 /// The returned vector contains only failed operations and
 /// their associated reasons.
-pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, String)>> {
+pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, ErrorKind)>> {
     let mut failed_paths = Vec::new();
 
     if paths.is_empty() {
@@ -197,7 +197,11 @@ pub fn trash_files_nsfilemanager(paths: &[PathBuf]) -> Result<Vec<(PathBuf, Stri
                 _ => format!("Failed with {} ({})", domain, code),
             };
 
-            failed_paths.push((path.clone(), reason));
+            let err = ErrorKind::failed()
+                .with_summary(reason)
+                .with_reason(format!("{} ({})", domain, code));
+
+            failed_paths.push((path.clone(), err));
         }
     }
 

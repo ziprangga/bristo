@@ -85,27 +85,27 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::path::Path;
 
-/// Result classification for a trash operation.
-///
-/// Doc:
-/// Represents the outcome of a file removal attempt.
-///
-/// Variants:
-///
-/// - `Failed` indicates a removal operation was attempted
-///   but did not succeed.
-/// - `Skipped` indicates the operation was intentionally
-///   not executed.
-///
-/// Note:
-/// Successful removals are not represented because
-/// `trash_all_entry()` only returns entries requiring
-/// additional attention from the caller.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum TrashStatus {
-    Failed,
-    Skipped,
-}
+// /// Result classification for a trash operation.
+// ///
+// /// Doc:
+// /// Represents the outcome of a file removal attempt.
+// ///
+// /// Variants:
+// ///
+// /// - `Failed` indicates a removal operation was attempted
+// ///   but did not succeed.
+// /// - `Skipped` indicates the operation was intentionally
+// ///   not executed.
+// ///
+// /// Note:
+// /// Successful removals are not represented because
+// /// `trash_all_entry()` only returns entries requiring
+// /// additional attention from the caller.
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+// enum TrashStatus {
+//     Failed,
+//     Skipped,
+// }
 
 /// Describes a file that could not be removed.
 ///
@@ -129,28 +129,67 @@ pub enum TrashStatus {
 /// Note:
 /// These entries are primarily intended for user-facing
 /// reporting and cleanup diagnostics.
+// #[derive(Debug, Clone)]
+// pub struct TrashEntry {
+//     status: TrashStatus,
+//     entry: FileEntry,
+//     reason: Option<String>,
+// }
+
+// impl TrashEntry {
+//     pub fn new(status: TrashStatus, entry: FileEntry, reason: Option<String>) -> Self {
+//         Self {
+//             status: status,
+//             entry,
+//             reason: reason,
+//         }
+//     }
+
+//     pub fn status(&self) -> TrashStatus {
+//         self.status
+//     }
+
+//     pub fn reason(&self) -> Option<&str> {
+//         self.reason.as_deref()
+//     }
+
+//     pub fn entry(&self) -> &FileEntry {
+//         &self.entry
+//     }
+
+//     pub fn into_entry(self) -> FileEntry {
+//         self.entry
+//     }
+
+//     pub fn failed(entry: FileEntry, reason: String) -> Self {
+//         Self {
+//             status: TrashStatus::Failed,
+//             entry,
+//             reason: Some(reason),
+//         }
+//     }
+
+//     pub fn skipped(entry: FileEntry, reason: String) -> Self {
+//         Self {
+//             status: TrashStatus::Skipped,
+//             entry,
+//             reason: Some(reason),
+//         }
+//     }
+// }
 #[derive(Debug, Clone)]
 pub struct TrashEntry {
-    status: TrashStatus,
     entry: FileEntry,
-    reason: Option<String>,
+    error: Option<ErrorKind>,
 }
 
 impl TrashEntry {
-    pub fn new(status: TrashStatus, entry: FileEntry, reason: Option<String>) -> Self {
-        Self {
-            status: status,
-            entry,
-            reason: reason,
-        }
+    pub fn new(entry: FileEntry, error: Option<ErrorKind>) -> Self {
+        Self { entry, error }
     }
 
-    pub fn status(&self) -> TrashStatus {
-        self.status
-    }
-
-    pub fn reason(&self) -> Option<&str> {
-        self.reason.as_deref()
+    pub fn error(&self) -> Option<&ErrorKind> {
+        self.error.as_ref()
     }
 
     pub fn entry(&self) -> &FileEntry {
@@ -161,19 +200,17 @@ impl TrashEntry {
         self.entry
     }
 
-    pub fn failed(entry: FileEntry, reason: String) -> Self {
+    pub fn failed(entry: FileEntry, error: ErrorKind) -> Self {
         Self {
-            status: TrashStatus::Failed,
             entry,
-            reason: Some(reason),
+            error: Some(error),
         }
     }
 
-    pub fn skipped(entry: FileEntry, reason: String) -> Self {
+    pub fn skipped(entry: FileEntry, error: ErrorKind) -> Self {
         Self {
-            status: TrashStatus::Skipped,
             entry,
-            reason: Some(reason),
+            error: Some(error),
         }
     }
 }
@@ -440,7 +477,9 @@ impl Cleaner {
                 if matches!(entry, FileEntry::AppPath(_)) {
                     results.push(TrashEntry::skipped(
                         entry.clone(),
-                        "because some associated files failed to move".to_string(),
+                        // "because some associated files failed to move".to_string(),
+                        ErrorKind::skipped()
+                            .with_reason("because some associated files failed to move"),
                     ));
                 }
             }

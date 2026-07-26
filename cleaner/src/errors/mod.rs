@@ -5,7 +5,7 @@ use std::borrow::Cow;
 
 pub type Result<T> = std::result::Result<T, ErrorKind>;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ErrorKind {
     kind: Kind,
     summary: Option<Cow<'static, str>>,
@@ -54,6 +54,13 @@ impl ErrorKind {
     pub fn is_empty(&self) -> bool {
         self.summary.is_none() && self.reason.is_none()
     }
+
+    pub fn priority(&self) -> u8 {
+        match self.kind {
+            Kind::Failed => 0,
+            Kind::Skipped => 1,
+        }
+    }
 }
 
 impl std::fmt::Display for ErrorKind {
@@ -78,3 +85,15 @@ impl std::fmt::Display for ErrorKind {
 
 // Implement standard Error trait so it plays nice with standard tools and tasks
 impl std::error::Error for ErrorKind {}
+
+impl Ord for ErrorKind {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.kind.cmp(&other.kind)
+    }
+}
+
+impl PartialOrd for ErrorKind {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}

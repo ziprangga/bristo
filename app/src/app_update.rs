@@ -12,7 +12,7 @@ use crate::app_task::set_input_path;
 use crate::app_task::set_output_path;
 use crate::app_task::trash_app_async;
 
-use cleaner::TrashStatus;
+use cleaner::ErrorKind;
 use iced::{Subscription, Task, futures::StreamExt};
 use mini_logger::debug;
 use simple_status::{ChannelKind, create_channels};
@@ -320,7 +320,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             .replace_remaining_entries(remaining_entries.clone());
 
                         let mut missing = 0usize;
-                        let mut grouped: HashMap<(TrashStatus, String), usize> = HashMap::new();
+                        let mut grouped: HashMap<ErrorKind, usize> = HashMap::new();
 
                         for e in &remaining_entries {
                             let path = e.entry().as_path();
@@ -330,18 +330,21 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                                 continue;
                             }
 
-                            let reason = e.reason().unwrap_or("Unknown").to_string();
+                            // let reason = e.reason().unwrap_or("Unknown").to_string();
 
-                            *grouped.entry((e.status(), reason)).or_insert(0) += 1;
+                            // *grouped.entry((e.status(), reason)).or_insert(0) += 1;
+                            if let Some(error) = e.error() {
+                                *grouped.entry(error.clone()).or_insert(0) += 1;
+                            }
                         }
 
-                        let mut items: Vec<((TrashStatus, String), usize)> =
-                            grouped.into_iter().collect();
+                        let mut items: Vec<(ErrorKind, usize)> = grouped.into_iter().collect();
 
-                        items.sort_by_key(|((status, _reason), _count)| match status {
-                            TrashStatus::Failed => 0,
-                            TrashStatus::Skipped => 1,
-                        });
+                        // items.sort_by_key(|((status, _reason), _count)| match status {
+                        //     TrashStatus::Failed => 0,
+                        //     TrashStatus::Skipped => 1,
+                        // });
+                        items.sort_by_key(|(error, _count)| error.priority());
 
                         let mut report = Vec::new();
 
@@ -351,14 +354,24 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                             report.push(format!("{} items path not exist", missing));
                         }
 
-                        for ((status, reason), count) in items {
-                            let label = match status {
-                                TrashStatus::Failed => "failed",
-                                TrashStatus::Skipped => "skipped",
-                            };
+                        // for ((status, reason), count) in items {
+                        //     let label = match status {
+                        //         TrashStatus::Failed => "failed",
+                        //         TrashStatus::Skipped => "skipped",
+                        //     };
 
-                            report.push(format!("{} items {}: {}", count, label, reason));
+                        //     report.push(format!("{} items {}: {}", count, label, reason));
+                        // }
+
+                        for (error, count) in items {
+                            report.push(format!(
+                                "{} items {}: {}",
+                                count,
+                                error.kind().as_str(),
+                                error.reason().unwrap_or("Unknown")
+                            ));
                         }
+
                         let report_error = cleaner::ErrorKind::failed()
                             .with_summary("Some assets could not be moved")
                             .with_reason(report.join("\n"));
