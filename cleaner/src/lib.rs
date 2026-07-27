@@ -12,55 +12,56 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Doc:
 //! Core application cleanup and uninstall orchestration.
 //!
 //! This crate provides the high-level API used to inspect, analyze,
-//! and remove macOS applications together with their associated files.
+//! and remove macOS applications together with their related files.
 //!
-//! The crate is built around three primary responsibilities:
+//! The crate is organized around three primary responsibilities:
 //!
-//! - `AppProfile` stores all discovered application information.
-//! - `Cleaner` orchestrates scanning and removal operations.
-//! - `IconCache` provides cached macOS icon assets for UI rendering.
+//! - `AppProfile` stores discovered application information and scan results.
+//! - `Cleaner` coordinates application analysis and cleanup workflows.
+//! - `TrashEntry` stores the result of trash operations, including moved
+//!   paths and paths that failed to move.
 //!
 //! The cleanup workflow generally follows:
 //!
 //! 1. Build an `AppProfile` from an application path.
-//! 2. Discover running processes.
-//! 3. Locate package receipts and BOM logs.
+//! 2. Discover running application processes.
+//! 3. Locate package receipts and BOM metadata.
 //! 4. Locate associated files.
 //! 5. Locate BTM (Background Task Management) files.
 //! 6. Optionally terminate running processes.
 //! 7. Move discovered files to Trash.
 //!
-//! The module intentionally separates discovery, state management,
-//! and system interaction:
+//! The crate separates application state, orchestration, and
+//! platform-specific operations:
 //!
-//! - `AppProfile` owns discovered application state.
-//! - `Cleaner` coordinates cleanup operations.
-//! - `syscom` performs platform-specific system calls.
+//! - `AppProfile` owns discovered application data.
+//! - `Cleaner` coordinates scanning, process handling, and cleanup.
+//! - `syscom` provides macOS system command integration.
+//! - `TrashEntry` represents trash operation results.
 //!
-//! Associated file discovery is divided into multiple categories:
+//! Application files are discovered from multiple sources:
 //!
 //! - Application bundle paths.
 //! - Associated files (`AscFiles`).
-//! - Background task management files (`BtmFiles`).
-//! - Package receipt and BOM metadata.
+//! - Background Task Management files (`BtmFiles`).
+//! - Package receipts and BOM metadata.
 //!
-//! Failed cleanup operations are represented by `TrashEntry`,
-//! allowing callers to inspect which files could not be removed
-//! and why.
+//! Cleanup results are preserved through `TrashEntry`, allowing callers
+//! to inspect which paths were successfully moved and which paths failed
+//! together with their associated errors.
 //!
-//! The module is designed so both CLI and GUI frontends can share
-//! the same scanning and cleanup logic while providing their own
-//! presentation layer.
+//! The crate is designed to be shared by different frontends, such as
+//! CLI or GUI applications, while keeping scanning and cleanup logic
+//! independent from presentation concerns.
 //!
 //! Note:
 //! Most applications should interact primarily with `Cleaner`.
-//! Lower-level types such as `AppProfile`, scanning modules,
-//! and platform-specific helpers exist to organize implementation
-//! details and support advanced use cases.
+//! Lower-level types such as `AppProfile`, scanning modules, and
+//! platform-specific helpers exist to organize implementation details
+//! and support advanced workflows.
 //!..
 
 mod app_profile;
@@ -91,152 +92,26 @@ use rayon::prelude::*;
 use std::borrow::Cow;
 use std::path::Path;
 
-// /// Result classification for a trash operation.
-// ///
-// /// Doc:
-// /// Represents the outcome of a file removal attempt.
-// ///
-// /// Variants:
-// ///
-// /// - `Failed` indicates a removal operation was attempted
-// ///   but did not succeed.
-// /// - `Skipped` indicates the operation was intentionally
-// ///   not executed.
-// ///
-// /// Note:
-// /// Successful removals are not represented because
-// /// `trash_all_entry()` only returns entries requiring
-// /// additional attention from the caller.
-// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-// enum TrashStatus {
-//     Failed,
-//     Skipped,
-// }
-
-/// Describes a file that could not be removed.
-///
-/// Doc:
-/// Contains information about a failed or skipped cleanup
-/// operation.
-///
-/// A `TrashEntry` stores:
-///
-/// - The resulting `TrashStatus`.
-/// - The affected `FileEntry`.
-/// - An optional human-readable reason.
-///
-/// Examples:
-///
-/// - Permission denied.
-/// - File is currently in use.
-/// - Application removal skipped because associated
-///   files failed.
-///
-/// Note:
-/// These entries are primarily intended for user-facing
-/// reporting and cleanup diagnostics.
-// #[derive(Debug, Clone)]
-// pub struct TrashEntry {
-//     status: TrashStatus,
-//     entry: FileEntry,
-//     reason: Option<String>,
-// }
-
-// impl TrashEntry {
-//     pub fn new(status: TrashStatus, entry: FileEntry, reason: Option<String>) -> Self {
-//         Self {
-//             status: status,
-//             entry,
-//             reason: reason,
-//         }
-//     }
-
-//     pub fn status(&self) -> TrashStatus {
-//         self.status
-//     }
-
-//     pub fn reason(&self) -> Option<&str> {
-//         self.reason.as_deref()
-//     }
-
-//     pub fn entry(&self) -> &FileEntry {
-//         &self.entry
-//     }
-
-//     pub fn into_entry(self) -> FileEntry {
-//         self.entry
-//     }
-
-//     pub fn failed(entry: FileEntry, reason: String) -> Self {
-//         Self {
-//             status: TrashStatus::Failed,
-//             entry,
-//             reason: Some(reason),
-//         }
-//     }
-
-//     pub fn skipped(entry: FileEntry, reason: String) -> Self {
-//         Self {
-//             status: TrashStatus::Skipped,
-//             entry,
-//             reason: Some(reason),
-//         }
-//     }
-// }
-// #[derive(Debug, Clone)]
-// pub struct TrashEntry {
-//     entry: FileEntry,
-//     error: Option<ErrorKind>,
-// }
-
-// impl TrashEntry {
-//     pub fn new(entry: FileEntry, error: Option<ErrorKind>) -> Self {
-//         Self { entry, error }
-//     }
-
-//     pub fn error(&self) -> Option<&ErrorKind> {
-//         self.error.as_ref()
-//     }
-
-//     pub fn entry(&self) -> &FileEntry {
-//         &self.entry
-//     }
-
-//     pub fn into_entry(self) -> FileEntry {
-//         self.entry
-//     }
-
-//     pub fn failed(entry: FileEntry, error: ErrorKind) -> Self {
-//         Self {
-//             entry,
-//             error: Some(error),
-//         }
-//     }
-
-//     pub fn skipped(entry: FileEntry, error: ErrorKind) -> Self {
-//         Self {
-//             entry,
-//             error: Some(error),
-//         }
-//     }
-// }
-
 /// Application cleanup coordinator.
 ///
 /// Doc:
 /// `Cleaner` is the primary entry point for application scanning,
-/// inspection, and removal.
+/// inspection, process handling, and removal operations.
 ///
-/// A `Cleaner` owns a single `AppProfile` and provides operations
-/// for:
+/// A `Cleaner` owns an `AppProfile` containing discovered application
+/// information and a `TrashEntry` containing the latest trash operation
+/// result.
 ///
+/// Responsibilities include:
+///
+/// - Application profile creation.
 /// - Process discovery.
 /// - Process termination.
 /// - Receipt scanning.
 /// - Associated file discovery.
 /// - BTM file discovery.
 /// - BOM log export.
-/// - Trash operations.
+/// - Moving discovered files to Trash.
 ///
 /// Typical workflow:
 ///
@@ -253,15 +128,14 @@ use std::path::Path;
 /// scan_app_profile()
 ///       │
 ///       ├─ save_bom_logs()
-///       ├─ print_summary()
-///       ├─ trash_all_entry()
+///       ├─ move_to_trash()
 ///       └─ reset()
 /// ```
 ///
 /// Note:
-/// `Cleaner` acts as an orchestration layer and delegates
-/// platform-specific operations to `syscom` while storing
-/// discovered state inside `AppProfile`.
+/// `Cleaner` acts as an orchestration layer. Platform-specific
+/// operations are delegated to `syscom`, while discovered state and
+/// cleanup results are stored internally.
 #[derive(Debug, Default, Clone)]
 pub struct Cleaner {
     app_profile: AppProfile,
@@ -362,7 +236,7 @@ impl Cleaner {
         Ok(())
     }
 
-    /// Scan an app at the given path and return AppProfile
+    /// Scan the current application profile and discover related files.
     pub fn scan_app_profile<F>(&mut self, progress: F) -> Result<&Self>
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
@@ -384,7 +258,7 @@ impl Cleaner {
         Ok(self)
     }
 
-    /// Save BOM logs of the current app to the given folder
+    /// Export discovered BOM metadata into log files inside the given folder.
     pub fn save_bom_logs(&self, log_dir: &Path) -> Result<()> {
         // Determine the folder
         let app_log_folder = Path::new(log_dir).join(format!(
@@ -421,7 +295,7 @@ impl Cleaner {
         results.into_iter().collect::<Result<()>>()
     }
 
-    /// listed of FileEntry, all path that associate to the app
+    /// Returns all discovered application paths with their index.
     pub fn all_entries_enumerate(&self) -> Vec<(usize, PathData)> {
         self.app_profile
             .path_entry()
@@ -431,22 +305,43 @@ impl Cleaner {
             .collect()
     }
 
-    pub fn move_to_trash(&mut self) -> Result<&TrashEntry> {
-        let trash_entry = TrashEntry::move_to_trash(self.app_profile.path_entry())?;
+    pub fn move_to_trash(&mut self) -> Result<&Self> {
+        let path_entry = self.app_profile.path_entry();
 
-        let failed: Vec<PathData> = trash_entry
-            .failed_path()
-            .iter()
-            .map(|(path, _)| path.clone())
-            .collect();
+        let mut moved = Vec::new();
+        let mut failed = Vec::new();
 
-        if !failed.is_empty() {
-            self.app_profile.update_path_entry(&failed);
+        // Associated files
+        let asc_trash = TrashEntry::moved_path_to_trash(path_entry.as_associated())?;
+
+        moved.extend(asc_trash.moved_path().iter().cloned());
+        failed.extend(asc_trash.failed_path().iter().cloned());
+
+        // BTM files
+        let btm_trash = TrashEntry::moved_path_to_trash(path_entry.as_btm())?;
+
+        moved.extend(btm_trash.moved_path().iter().cloned());
+        failed.extend(btm_trash.failed_path().iter().cloned());
+
+        // App bundle only if associated + btm succeeded
+        if failed.is_empty() {
+            let app_trash =
+                TrashEntry::moved_path_to_trash(std::slice::from_ref(path_entry.as_app_path()))?;
+
+            moved.extend(app_trash.moved_path().iter().cloned());
+            failed.extend(app_trash.failed_path().iter().cloned());
+        } else {
+            failed.push((
+                path_entry.as_app_path().clone(),
+                ErrorKind::skipped().with_reason("because some associated files failed to move"),
+            ));
         }
+
+        let trash_entry = TrashEntry::new(moved, failed);
 
         self.trash_entry = trash_entry;
 
-        Ok(&self.trash_entry)
+        Ok(self)
     }
 
     pub fn restore_moved_path(&self) -> Result<()> {

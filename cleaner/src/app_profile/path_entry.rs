@@ -44,24 +44,20 @@ impl PathEntry {
     }
 
     pub fn update_entry(&mut self, failed: &[PathData]) {
-        self.associated.retain(|item| {
-            failed
-                .iter()
-                .any(|failed| failed.as_path() == item.as_path())
-        });
-
-        self.btm.retain(|item| {
-            failed
-                .iter()
-                .any(|failed| failed.as_path() == item.as_path())
-        });
-
-        if !failed
+        let associated = failed
             .iter()
-            .any(|item| item.as_path() == self.app_path.as_path())
-        {
-            self.app_path = PathData::default();
-        }
+            .filter(|item| matches!(item.as_kind(), Some(SourceKind::Associated)))
+            .cloned()
+            .collect();
+
+        let btm = failed
+            .iter()
+            .filter(|item| matches!(item.as_kind(), Some(SourceKind::Btm)))
+            .cloned()
+            .collect();
+
+        self.set_associated(associated);
+        self.set_btm(btm);
     }
 
     //// get path reference

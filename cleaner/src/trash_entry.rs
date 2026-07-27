@@ -55,7 +55,6 @@
 //! the Trash by the user or operating system.
 //!..
 
-use crate::app_profile::PathEntry;
 use crate::errors::{ErrorKind, Result};
 use crate::path_data::PathData;
 use crate::syscom::trash_files_nsfilemanager;
@@ -142,6 +141,12 @@ pub struct TrashEntry {
 }
 
 impl TrashEntry {
+    pub fn new(moved_path: Vec<TrashItem>, failed_path: Vec<(PathData, ErrorKind)>) -> Self {
+        Self {
+            moved_path,
+            failed_path,
+        }
+    }
     /// Moves all paths in the entry to the system Trash.
     ///
     /// Doc:
@@ -168,10 +173,8 @@ impl TrashEntry {
     /// The current implementation records successful moves but
     /// does not yet populate the final trash location returned by
     /// the operating system.
-    pub fn move_to_trash(path_entry: &PathEntry) -> Result<Self> {
+    pub fn moved_path_to_trash(paths: &[PathData]) -> Result<Self> {
         let mut result = Self::default();
-
-        let paths = path_entry.all_paths();
 
         let path_bufs: Vec<PathBuf> = paths.iter().map(|p| p.as_path().to_path_buf()).collect();
 
@@ -184,16 +187,6 @@ impl TrashEntry {
             }
         }
 
-        // for item in paths {
-        //     if !result
-        //         .failed_path
-        //         .iter()
-        //         .any(|(failed_item, _)| failed_item.as_path() == item.as_path())
-        //     {
-        //         // need actual trash path here if you want restore
-        //         result.moved_path.push(TrashItem::new(item, PathBuf::new()));
-        //     }
-        // }
         for (source_path, trashed_path) in moved {
             if let Some(item) = paths.iter().find(|p| p.as_path() == source_path) {
                 result
@@ -222,7 +215,7 @@ impl TrashEntry {
     /// Note:
     /// Calling this function currently performs no restore
     /// operation.
-    pub fn put_back(&self, _trashed_path: &mut PathEntry) -> Result<()> {
+    pub fn put_back(&self, _from_trash: &[TrashItem]) -> Result<()> {
         Ok(println!("to do"))
     }
 
@@ -232,5 +225,21 @@ impl TrashEntry {
 
     pub fn failed_path(&self) -> &[(PathData, ErrorKind)] {
         &self.failed_path
+    }
+
+    pub fn set_moved_path(&mut self, moved_path: Vec<TrashItem>) {
+        self.moved_path = moved_path;
+    }
+
+    pub fn set_failed_path(&mut self, failed_path: Vec<(PathData, ErrorKind)>) {
+        self.failed_path = failed_path;
+    }
+
+    pub fn moved_path_mut(&mut self) -> &mut Vec<TrashItem> {
+        &mut self.moved_path
+    }
+
+    pub fn failed_path_mut(&mut self) -> &mut Vec<(PathData, ErrorKind)> {
+        &mut self.failed_path
     }
 }

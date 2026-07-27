@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-//! Doc:
 //! Application profile and discovery state.
 //!
 //! This module defines the core data structures used to represent
@@ -20,39 +19,41 @@
 //!
 //! The module is built around two primary concepts:
 //!
-//! - `AppProfile` stores the complete application state.
-//! - `FileEntry` provides a unified representation of discovered files.
+//! - `AppProfile` stores the complete application discovery state.
+//! - `PathEntry` stores and manages discovered filesystem entries.
 //!
 //! An `AppProfile` acts as the central aggregation point for:
 //!
 //! - Application metadata.
 //! - Running processes.
-//! - Package receipt information.
-//! - Associated files.
-//! - Background task management (BTM) files.
+//! - Package receipt and BOM information.
+//! - Application related filesystem paths.
 //!
 //! The typical lifecycle is:
 //!
 //! 1. Create an `AppProfile` from an application path.
 //! 2. Discover running processes.
 //! 3. Scan package receipts and BOM files.
-//! 4. Scan associated files.
-//! 5. Scan BTM files.
-//! 6. Retrieve a merged list of discovered entries.
+//! 4. Scan associated application files.
+//! 5. Scan BTM (Background Task Management) files.
+//! 6. Retrieve discovered filesystem entries.
 //!
-//! The module intentionally separates discovered data into dedicated
-//! containers (`AppMetadata`, `AppProcs`, `AppLogReceipt`,
-//! `AppAscFiles`, and `AppBtmFiles`) while exposing a single
-//! aggregate view through `AppProfile`.
+//! The module separates application information into dedicated
+//! containers:
 //!
-//! `FileEntry` exists as a common abstraction for application bundles,
-//! associated files, and BTM files, allowing callers to process all
-//! discovered items through a unified interface.
+//! - `AppMetadata` stores application information.
+//! - `AppProcs` stores discovered running processes.
+//! - `AppLogReceipt` stores package receipt and BOM metadata.
+//! - `PathEntry` stores application, associated, and BTM paths.
+//!
+//! `AppProfile` provides a single aggregate state used by the
+//! cleanup workflow while delegating discovery details to the
+//! specialized containers responsible for each data category.
 //!
 //! Note:
 //! Most callers should interact with `AppProfile` rather than the
-//! individual storage types directly. The lower-level types primarily
-//! exist to organize discovery results and scanning logic.
+//! individual storage types directly. Lower-level types exist to
+//! organize discovery results and scanning logic.
 //!..
 
 mod bom_receipt;
@@ -73,71 +74,25 @@ use crate::locations_scan::BtmLocations;
 use crate::locations_scan::ReceiptsLocations;
 use crate::locations_scan::ScanLocations;
 use crate::path_data::PathData;
-// use crate::scanner::construct_scanner_result;
 use mini_logger::debug;
 use std::path::Path;
-
-// /// Unified representation of a discovered filesystem entry.
-// ///
-// /// Doc:
-// /// Represents a file or directory associated with an application.
-// ///
-// /// Variants:
-// ///
-// /// - `AppPath` represents the application bundle itself.
-// /// - `AscFiles` represents associated application files.
-// /// - `BtmFiles` represents background task management files.
-// ///
-// /// The type provides a common interface for retrieving names
-// /// and filesystem paths regardless of the underlying source.
-// ///
-// /// This abstraction allows scanning, reporting, UI rendering,
-// /// and cleanup operations to operate on a single collection of
-// /// entries without needing to know their specific category.
-// ///
-// /// Note:
-// /// `FileEntry` is primarily used as the merged output of
-// /// `AppProfile::all_entries()`.
-// #[derive(Debug, Clone)]
-// pub enum FileEntry {
-//     AppPath(AppMetadata),
-//     AscFiles(PathData),
-//     BtmFiles(PathData),
-// }
-
-// impl FileEntry {
-//     pub fn as_path(&self) -> &Path {
-//         match self {
-//             Self::AppPath(v) => v.as_path(),
-//             Self::AscFiles(v) => v.as_path(),
-//             Self::BtmFiles(v) => v.as_path(),
-//         }
-//     }
-
-//     pub fn as_name(&self) -> &str {
-//         match self {
-//             Self::AppPath(v) => v.as_info().as_name(),
-//             Self::AscFiles(v) => v.as_name(),
-//             Self::BtmFiles(v) => v.as_name(),
-//         }
-//     }
-// }
 
 /// Aggregated application discovery state.
 ///
 /// Doc:
-/// Stores all information known about a scanned application.
+/// Stores all information discovered about an application during
+/// the scanning workflow.
 ///
 /// An `AppProfile` acts as the central model used throughout
-/// the scanning and cleanup workflow.
+/// application inspection and cleanup operations.
 ///
 /// Stored information includes:
 ///
 /// - Application metadata.
 /// - Running processes.
 /// - Package receipt information.
-/// - Associated files.
-/// - Background task management files.
+/// - BOM metadata.
+/// - Discovered filesystem paths.
 ///
 /// Discovery operations progressively populate the profile:
 ///
@@ -151,23 +106,20 @@ use std::path::Path;
 /// AppLogReceipt
 ///      │
 ///      ▼
-/// AppAscFiles
+/// PathEntry
 ///      │
-///      ▼
-/// AppBtmFiles
+///      ├─ Application bundle
+///      ├─ Associated files
+///      └─ BTM files
 /// ```
 ///
-/// Once populated, the profile can provide a merged view of
-/// all discovered filesystem entries through `all_entries()`.
-///
-/// The profile itself performs discovery coordination by
-/// delegating scanning work to the specialized storage types
-/// responsible for each category.
+/// Once populated, `PathEntry` provides access to all discovered
+/// filesystem locations related to the application.
 ///
 /// Note:
-/// `AppProfile` is designed to be a mutable scanning state.
-/// It is commonly owned by `Cleaner`, which provides the
-/// higher-level cleanup workflow.
+/// `AppProfile` represents mutable discovery state. It is commonly
+/// owned by `Cleaner`, which provides the higher-level cleanup
+/// orchestration.
 #[derive(Debug, Default, Clone)]
 pub struct AppProfile {
     app_metadata: AppMetadata,
@@ -229,6 +181,9 @@ impl AppProfile {
         }
     }
 
+    /// Scans package receipts and BOM metadata for the application.
+    ///
+    /// The progress callback reports the current scanning progress.
     pub fn find_log_bom<F>(&mut self, locations: &ReceiptsLocations, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
@@ -237,8 +192,11 @@ impl AppProfile {
             .scan_bom_files(&self.app_metadata, locations, progress);
     }
 
-    // Scan all file associate from list of location
-    // use progress as emitter status to caller
+    /// Scans filesystem locations for files associated with the application.
+    ///
+    /// The discovered paths are stored inside `PathEntry`.
+    ///
+    /// The progress callback reports the current scanning progress.
     pub fn find_associate_files<F>(&mut self, locations: &ScanLocations, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
@@ -247,8 +205,11 @@ impl AppProfile {
             .scan_asc_files(&self.app_metadata, locations, progress);
     }
 
-    // Scan all file btm from list of location
-    // use progress as emitter status to caller
+    /// Scans Background Task Management (BTM) locations.
+    ///
+    /// The discovered paths are stored inside `PathEntry`.
+    ///
+    /// The progress callback reports the current scanning progress.
     pub fn find_btm_files<F>(&mut self, locations: &BtmLocations, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
@@ -257,106 +218,14 @@ impl AppProfile {
             .scan_btm_files(&self.app_metadata, locations, progress);
     }
 
-    /// Returns all discovered filesystem entries.
-    ///
-    /// Doc:
-    /// Produces a merged collection containing:
-    ///
-    /// - Associated files.
-    /// - BTM files.
-    /// - The application bundle itself.
-    ///
-    /// The resulting collection is normalized through
-    /// `construct_scanner_result()` before being returned.
-    ///
-    /// This method is typically used by:
-    ///
-    /// - Cleanup operations.
-    /// - Reporting utilities.
-    /// - User interfaces.
-    /// - Export functionality.
-    ///
-    /// Note:
-    /// The returned collection represents the current state of
-    /// the profile and reflects any modifications made through
-    /// `replace_file_entries()`.
-    // pub fn all_entries(&self) -> Vec<FileEntry> {
-    //     let mut entries = Vec::new();
-
-    //     // AscFiles
-    //     entries.extend(
-    //         self.app_asc_files
-    //             .as_asc_files()
-    //             .iter()
-    //             .cloned()
-    //             .map(FileEntry::AscFiles),
-    //     );
-
-    //     // BtmFiles
-    //     entries.extend(
-    //         self.app_btm_files
-    //             .as_btm_files()
-    //             .iter()
-    //             .cloned()
-    //             .map(FileEntry::BtmFiles),
-    //     );
-
-    //     // AppPath
-    //     entries.push(FileEntry::AppPath(self.app_metadata.clone()));
-
-    //     construct_scanner_result(entries, None, |entry| entry.as_path())
-    // }
     pub fn path_entry(&self) -> &PathEntry {
         &self.path_entry
     }
 
-    /// Replaces discovered file entries.
+    /// Updates stored filesystem entries using failed cleanup paths.
     ///
-    /// Doc:
-    /// Updates the profile using a new collection of `FileEntry`
-    /// values.
-    ///
-    /// Entries are automatically separated into their respective
-    /// storage containers:
-    ///
-    /// - Application metadata.
-    /// - Associated files.
-    /// - BTM files.
-    ///
-    /// This method is primarily used after cleanup operations
-    /// when only a subset of entries remain available.
-    ///
-    /// Note:
-    /// Entries not present in the provided collection are removed
-    /// from the profile state.
-    // pub fn replace_file_entries(&mut self, entries: Vec<FileEntry>) {
-    //     let mut app_metadata = None;
-    //     let mut asc_files = Vec::new();
-    //     let mut btm_files = Vec::new();
-
-    //     for entry in entries {
-    //         match entry {
-    //             FileEntry::AppPath(app) => {
-    //                 app_metadata = Some(app);
-    //             }
-
-    //             FileEntry::BtmFiles(file) => {
-    //                 btm_files.push(file);
-    //             }
-
-    //             FileEntry::AscFiles(file) => {
-    //                 asc_files.push(file);
-    //             }
-    //         }
-    //     }
-
-    //     if let Some(app) = app_metadata {
-    //         self.app_metadata = app;
-    //     }
-
-    //     self.app_asc_files.set_asc_files(asc_files);
-    //     self.app_btm_files.set_btm_files(btm_files);
-    // }
+    /// Paths provided in `failed` are used to rebuild the remaining
+    /// application entries after a cleanup operation.
     pub fn update_path_entry(&mut self, failed: &[PathData]) {
         self.path_entry.update_entry(failed);
     }
@@ -370,9 +239,8 @@ impl AppProfile {
     ///
     /// - Metadata.
     /// - Processes.
-    /// - Receipts.
-    /// - Associated files.
-    /// - BTM files.
+    /// - BOM Receipts.
+    /// - Discovered filesystem paths.
     ///
     /// Note:
     /// After calling this method the profile behaves as if it
