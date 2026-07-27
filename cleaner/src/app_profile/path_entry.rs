@@ -14,7 +14,7 @@ use crate::scanner::scan_general;
 
 #[derive(Debug, Clone, Default)]
 pub struct PathEntry {
-    app_path: PathData,
+    app_path: Option<PathData>,
     associated: Vec<PathData>,
     btm: Vec<PathData>,
 }
@@ -27,7 +27,7 @@ impl PathEntry {
             SourceKind::App,
         );
         Self {
-            app_path,
+            app_path: Some(app_path),
             associated: Vec::new(),
             btm: Vec::new(),
         }
@@ -36,7 +36,9 @@ impl PathEntry {
     pub fn all_paths(&self) -> Vec<PathData> {
         let mut paths = Vec::new();
 
-        paths.push(self.app_path.clone());
+        if let Some(app_path) = &self.app_path {
+            paths.push(app_path.clone());
+        }
         paths.extend(self.associated.iter().cloned());
         paths.extend(self.btm.iter().cloned());
 
@@ -44,6 +46,11 @@ impl PathEntry {
     }
 
     pub fn update_entry(&mut self, failed: &[PathData]) {
+        let app_path = failed
+            .iter()
+            .find(|item| matches!(item.as_kind(), Some(SourceKind::App)))
+            .cloned();
+
         let associated = failed
             .iter()
             .filter(|item| matches!(item.as_kind(), Some(SourceKind::Associated)))
@@ -56,13 +63,14 @@ impl PathEntry {
             .cloned()
             .collect();
 
+        self.app_path = app_path;
         self.set_associated(associated);
         self.set_btm(btm);
     }
 
     //// get path reference
-    pub fn as_app_path(&self) -> &PathData {
-        &self.app_path
+    pub fn as_app_path(&self) -> Option<&PathData> {
+        self.app_path.as_ref()
     }
 
     //// reference of btm files
@@ -77,7 +85,7 @@ impl PathEntry {
 
     /// Update path app
     pub fn set_app_path(&mut self, path: PathData) {
-        self.app_path = path;
+        self.app_path = Some(path);
     }
 
     /// Update btm files with given list

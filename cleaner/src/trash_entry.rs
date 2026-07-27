@@ -227,6 +227,13 @@ impl TrashEntry {
         &self.failed_path
     }
 
+    pub fn failed_paths(&self) -> Vec<PathData> {
+        self.failed_path()
+            .iter()
+            .map(|(path, _)| path.clone())
+            .collect()
+    }
+
     pub fn set_moved_path(&mut self, moved_path: Vec<TrashItem>) {
         self.moved_path = moved_path;
     }

@@ -324,20 +324,32 @@ impl Cleaner {
         failed.extend(btm_trash.failed_path().iter().cloned());
 
         // App bundle only if associated + btm succeeded
-        if failed.is_empty() {
-            let app_trash =
-                TrashEntry::moved_path_to_trash(std::slice::from_ref(path_entry.as_app_path()))?;
+        match failed.is_empty() {
+            true => {
+                if let Some(app_path) = path_entry.as_app_path() {
+                    let app_trash =
+                        TrashEntry::moved_path_to_trash(std::slice::from_ref(app_path))?;
 
-            moved.extend(app_trash.moved_path().iter().cloned());
-            failed.extend(app_trash.failed_path().iter().cloned());
-        } else {
-            failed.push((
-                path_entry.as_app_path().clone(),
-                ErrorKind::skipped().with_reason("because some associated files failed to move"),
-            ));
+                    moved.extend(app_trash.moved_path().iter().cloned());
+                    failed.extend(app_trash.failed_path().iter().cloned());
+                }
+            }
+
+            false => {
+                if let Some(app_path) = path_entry.as_app_path() {
+                    failed.push((
+                        app_path.clone(),
+                        ErrorKind::skipped()
+                            .with_reason("because some associated files failed to move"),
+                    ));
+                }
+            }
         }
 
         let trash_entry = TrashEntry::new(moved, failed);
+
+        self.app_profile
+            .update_path_entry(&trash_entry.failed_paths());
 
         self.trash_entry = trash_entry;
 

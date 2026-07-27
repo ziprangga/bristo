@@ -229,6 +229,9 @@ impl AppProfile {
     pub fn update_path_entry(&mut self, failed: &[PathData]) {
         self.path_entry.update_entry(failed);
     }
+    // pub fn path_entry_mut(&mut self) -> &mut PathEntry {
+    //     &mut self.path_entry
+    // }
 
     /// Clears all stored application state.
     ///
