@@ -431,7 +431,7 @@ impl Cleaner {
             .collect()
     }
 
-    pub fn move_to_trash(&mut self) -> Result<()> {
+    pub fn move_to_trash(&mut self) -> Result<&TrashEntry> {
         let trash_entry = TrashEntry::move_to_trash(self.app_profile.path_entry())?;
 
         let failed: Vec<PathData> = trash_entry
@@ -446,7 +446,7 @@ impl Cleaner {
 
         self.trash_entry = trash_entry;
 
-        Ok(())
+        Ok(&self.trash_entry)
     }
 
     pub fn restore_moved_path(&self) -> Result<()> {

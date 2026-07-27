@@ -16,6 +16,7 @@ use cleaner::ErrorKind;
 use iced::{Subscription, Task, futures::StreamExt};
 use mini_logger::debug;
 use simple_status::{ChannelKind, create_channels};
+use std::collections::HashMap;
 use std::sync::Arc;
 
 pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
@@ -301,14 +302,28 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
             if failed.is_empty() {
                 state.show_status = Status::new().with_status_success("App moved to Trash");
             } else {
-                let reason = failed
-                    .iter()
-                    .map(|(path, error)| format!("{}: {}", path.to_string(), error))
+                let mut grouped: HashMap<ErrorKind, usize> = HashMap::new();
+
+                for (_, error) in failed {
+                    *grouped.entry(error.clone()).or_insert(0) += 1;
+                }
+
+                let reason = grouped
+                    .into_iter()
+                    .map(|(error, count)| {
+                        let items = if count == 1 { "item" } else { "items" };
+                        let kind = error.kind().as_str().to_lowercase();
+
+                        match error.reason() {
+                            Some(reason) => format!("{count} {items} {kind} - {reason}"),
+                            None => format!("{count} {items} {kind}"),
+                        }
+                    })
                     .collect::<Vec<_>>()
                     .join("\n");
 
                 let error = ErrorKind::failed()
-                    .with_summary("Not moved")
+                    .with_summary("Some items could not be moved to Trash")
                     .with_reason(reason);
 
                 state.show_status = Status::new().with_status_error(error);

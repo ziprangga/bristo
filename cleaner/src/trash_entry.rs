@@ -175,7 +175,8 @@ impl TrashEntry {
 
         let path_bufs: Vec<PathBuf> = paths.iter().map(|p| p.as_path().to_path_buf()).collect();
 
-        let failed = trash_files_nsfilemanager(&path_bufs)?;
+        // let failed = trash_files_nsfilemanager(&path_bufs)?;
+        let (moved, failed) = trash_files_nsfilemanager(&path_bufs)?;
 
         for (failed_path, reason) in failed {
             if let Some(item) = paths.iter().find(|p| p.as_path() == failed_path) {
@@ -183,14 +184,21 @@ impl TrashEntry {
             }
         }
 
-        for item in paths {
-            if !result
-                .failed_path
-                .iter()
-                .any(|(failed_item, _)| failed_item.as_path() == item.as_path())
-            {
-                // need actual trash path here if you want restore
-                result.moved_path.push(TrashItem::new(item, PathBuf::new()));
+        // for item in paths {
+        //     if !result
+        //         .failed_path
+        //         .iter()
+        //         .any(|(failed_item, _)| failed_item.as_path() == item.as_path())
+        //     {
+        //         // need actual trash path here if you want restore
+        //         result.moved_path.push(TrashItem::new(item, PathBuf::new()));
+        //     }
+        // }
+        for (source_path, trashed_path) in moved {
+            if let Some(item) = paths.iter().find(|p| p.as_path() == source_path) {
+                result
+                    .moved_path
+                    .push(TrashItem::new(item.clone(), trashed_path));
             }
         }
 
