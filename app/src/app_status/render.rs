@@ -23,7 +23,7 @@ impl Renderer<StatusResult> for StatusResultRender {
                 }
 
                 if let Some(reason) = err.reason() {
-                    out.push_str(" - ");
+                    out.push('\n');
                     out.push_str(reason);
                 }
 

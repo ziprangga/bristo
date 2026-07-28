@@ -313,6 +313,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     *grouped.entry(error.clone()).or_insert(0) += 1;
                 }
 
+                let total_failed = missing + grouped.values().sum::<usize>();
                 let mut report = Vec::new();
 
                 if missing > 0 {
@@ -331,7 +332,12 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
                 let reason = report.join("\n");
 
-                let error = ErrorKind::failed().with_reason(reason);
+                let error = ErrorKind::failed()
+                    .with_summary(format!(
+                        "{total_failed} {} not moved",
+                        if total_failed == 1 { "item" } else { "items" }
+                    ))
+                    .with_reason(reason);
 
                 state.show_status = Status::new().with_status_error(error);
             }
