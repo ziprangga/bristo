@@ -1,3 +1,46 @@
+// Copyright 2026 ziprangga
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+//! Application path discovery and storage.
+//!
+//! This module defines `PathEntry`, the container responsible for
+//! storing filesystem paths discovered for an application.
+//!
+//! The discovery system collects information from multiple sources,
+//! including:
+//!
+//! - Application-data locations.
+//! - Sandbox container directories.
+//! - Background Task Management (BTM) locations.
+//!
+//! All discovered paths are merged into a single associated-path
+//! collection and deduplicated before being stored.
+//!
+//! `PathEntry` stores:
+//!
+//! - The application bundle path.
+//! - Discovered associated paths.
+//!
+//! The stored information is later used by cleanup workflows to
+//! determine which filesystem locations should be removed.
+//!
+//! Note:
+//! This module performs path discovery and storage only.
+//! It does not perform file removal, Trash operations, or process
+//! management.
+//!..
+
 use std::path::Path;
 use std::path::PathBuf;
 
@@ -31,6 +74,9 @@ use crate::scanner::scan_general;
 /// Note:
 /// This type stores discovery results only.
 /// It does not perform file deletion or cleanup operations.
+/// Sandbox containers, BTM entries, and traditional application
+/// files are stored together inside `associated_paths` after
+/// discovery and deduplication.
 #[derive(Debug, Clone, Default)]
 pub struct PathEntry {
     app_path: Option<PathData>,
