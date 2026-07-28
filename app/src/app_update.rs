@@ -314,13 +314,17 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                 }
 
                 let total_failed = missing + grouped.values().sum::<usize>();
+                let mut items: Vec<(ErrorKind, usize)> = grouped.into_iter().collect();
+
+                items.sort_by_key(|(error, _count)| error.priority());
+
                 let mut report = Vec::new();
 
                 if missing > 0 {
                     report.push(format!("{missing} items path not exist"));
                 }
 
-                report.extend(grouped.into_iter().map(|(error, count)| {
+                report.extend(items.into_iter().map(|(error, count)| {
                     let items = if count == 1 { "item" } else { "items" };
 
                     let kind = error.kind().as_str().to_lowercase();
