@@ -117,7 +117,6 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         .unwrap()
                         .as_app_profile()
                         .as_app_metadata()
-                        .as_info()
                         .as_name()
                 ));
 

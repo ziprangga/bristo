@@ -46,6 +46,7 @@
 //!
 //! - Application bundle paths.
 //! - Associated files (`AscFiles`).
+//! - Sandbox container data.
 //! - Background Task Management files (`BtmFiles`).
 //! - Package receipts and BOM metadata.
 //!
@@ -77,13 +78,12 @@ mod trash_entry;
 pub use app_profile::AppLogReceipt;
 pub use app_profile::AppMetadata;
 pub use app_profile::AppProfile;
-pub use app_profile::InfoPlist;
 pub use app_profile::PathEntry;
 pub use app_profile::{AppProcs, Proc};
 pub use errors::{ErrorKind, Result};
 pub use icon_cache::IconCache;
 pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
-pub use path_data::{PathData, SourceKind};
+pub use path_data::PathData;
 pub use rules::MatchRules;
 pub use trash_entry::TrashEntry;
 
@@ -169,7 +169,7 @@ impl Cleaner {
         let app_profile = AppProfile::from_path(path)?;
 
         if let Some(ref progress_hook) = progress {
-            let app_name = app_profile.as_app_metadata().as_info().as_name();
+            let app_name = app_profile.as_app_metadata().as_name();
             progress_hook(Cow::Owned(format!("Found profile for '{}'", app_name)));
         }
 
@@ -241,19 +241,7 @@ impl Cleaner {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        let locations = ScanLocations::new();
-
-        let btm_locations = BtmLocations::new();
-
-        let receipts_locations = ReceiptsLocations::new();
-
-        self.app_profile
-            .find_log_bom(&receipts_locations, progress.clone());
-
-        self.app_profile
-            .find_associate_files(&locations, progress.clone());
-
-        self.app_profile.find_btm_files(&btm_locations, progress);
+        self.app_profile.find_associated_paths(progress);
 
         Ok(self)
     }
@@ -263,7 +251,7 @@ impl Cleaner {
         // Determine the folder
         let app_log_folder = Path::new(log_dir).join(format!(
             "{}_bom_log",
-            self.app_profile.as_app_metadata().as_info().as_name()
+            self.app_profile.as_app_metadata().as_name()
         ));
         debug!("Creating folder: {}", app_log_folder.display());
 
@@ -298,32 +286,31 @@ impl Cleaner {
     /// Returns all discovered application paths with their index.
     pub fn all_entries_enumerate(&self) -> Vec<(usize, PathData)> {
         self.app_profile
-            .path_entry()
+            .as_path_entry()
             .all_paths()
             .into_iter()
             .enumerate()
             .collect()
     }
 
+    /// Move discovered application paths to Trash.
+    ///
+    /// Associated paths are moved first. The application bundle
+    /// is moved only when all associated paths were successfully
+    /// moved.
     pub fn move_to_trash(&mut self) -> Result<&Self> {
-        let path_entry = self.app_profile.path_entry();
+        let path_entry = self.app_profile.as_path_entry();
 
         let mut moved = Vec::new();
         let mut failed = Vec::new();
 
-        // Associated files
-        let asc_trash = TrashEntry::moved_path_to_trash(path_entry.as_associated())?;
+        // Associated paths
+        let asc_trash = TrashEntry::moved_path_to_trash(path_entry.as_associated_paths())?;
 
         moved.extend(asc_trash.moved_path().iter().cloned());
         failed.extend(asc_trash.failed_path().iter().cloned());
 
-        // BTM files
-        let btm_trash = TrashEntry::moved_path_to_trash(path_entry.as_btm())?;
-
-        moved.extend(btm_trash.moved_path().iter().cloned());
-        failed.extend(btm_trash.failed_path().iter().cloned());
-
-        // App bundle only if associated + btm succeeded
+        // App bundle only if associated succeeded
         match failed.is_empty() {
             true => {
                 if let Some(app_path) = path_entry.as_app_path() {

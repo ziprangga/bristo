@@ -18,10 +18,10 @@
 //! This module is responsible for identifying an application and
 //! extracting the metadata required by the scanning system.
 //!
-//! The module is built around two primary types:
+//! The module is built around a single primary type:
 //!
-//! - `AppMetadata` represents an application bundle.
-//! - `InfoPlist` stores metadata extracted from `Info.plist`.
+//! - `AppMetadata` represents an application bundle together
+//!   with its parsed identity information.
 //!
 //! Application metadata serves as the foundation for all discovery
 //! operations throughout the crate.
@@ -34,8 +34,8 @@
 //! - Match package receipts.
 //! - Generate user-facing application information.
 //!
-//! Metadata is primarily derived from `Info.plist`, with sensible
-//! fallbacks used when specific fields are unavailable.
+//! Metadata is derived from the application's `Info.plist`
+//! and used throughout the scanning system.
 //!
 //! Typical workflow:
 //!
@@ -50,12 +50,14 @@
 //! operations.
 //!..
 
-use crate::app_profile::info_plist::InfoPlist;
-use crate::errors::{ErrorKind, Result};
 use mini_logger::debug;
+use plist::Value;
 use rayon::prelude::*;
 use std::path::Path;
+use std::path::PathBuf;
 use walkdir::WalkDir;
+
+use crate::errors::{ErrorKind, Result};
 
 /// Application bundle metadata.
 ///
@@ -66,11 +68,14 @@ use walkdir::WalkDir;
 /// An `AppMetadata` contains:
 ///
 /// - The application bundle path.
-/// - Parsed `Info.plist` data.
+/// - Application display name.
+/// - Bundle identifier.
+/// - Executable name.
+/// - Organization identifier.
 ///
 /// The application path identifies the bundle on disk while
-/// the associated `InfoPlist` provides information used by
-/// discovery and matching operations.
+/// the parsed metadata fields are used by discovery and
+/// matching operations.
 ///
 /// Examples:
 ///
@@ -85,13 +90,29 @@ use walkdir::WalkDir;
 /// scanning system.
 #[derive(Debug, Default, Clone)]
 pub struct AppMetadata {
-    info: InfoPlist,
+    bundle_path: PathBuf,
+    name: String,
+    bundle_id: String,
+    bundle_executable_name: String,
+    organization: String,
 }
 
 impl AppMetadata {
     /// new contruct
-    pub fn new(info: InfoPlist) -> Self {
-        Self { info }
+    pub fn new(
+        bundle_path: PathBuf,
+        name: String,
+        bundle_id: String,
+        bundle_executable_name: String,
+        organization: String,
+    ) -> Self {
+        Self {
+            bundle_path,
+            name,
+            bundle_id,
+            bundle_executable_name,
+            organization,
+        }
     }
 
     /// Constructs application metadata from an application bundle.
@@ -124,7 +145,7 @@ impl AppMetadata {
     /// `Info.plist` is selected.
     ///
     /// The parsed metadata is then used to construct the
-    /// associated `InfoPlist`.
+    /// resulting `AppMetadata`.
     ///
     /// Returns an error if:
     ///
@@ -165,22 +186,143 @@ impl AppMetadata {
             plist_path = selected;
         }
 
-        let info = InfoPlist::from_plist(&plist_path, app_path)?;
+        let metadata = Self::parse_info_plist(&plist_path, app_path)?;
 
         debug!(
             "path: {}, name: {}, bundle_id: {}, bundle_name: {}, organization: {}",
             app_path.display(),
-            info.as_name(),
-            info.as_bundle_id(),
-            info.as_bundle_executable_name(),
-            info.as_organization(),
+            metadata.as_name(),
+            metadata.as_bundle_id(),
+            metadata.as_bundle_executable_name(),
+            metadata.as_organization(),
         );
 
-        Ok(Self { info })
+        Ok(metadata)
     }
 
-    /// get info reference
-    pub fn as_info(&self) -> &InfoPlist {
-        &self.info
+    /// get bundle path reference
+    pub fn as_bundle_path(&self) -> &Path {
+        &self.bundle_path
+    }
+
+    /// get name reference
+    pub fn as_name(&self) -> &str {
+        &self.name
+    }
+
+    /// get bundle_id reference
+    pub fn as_bundle_id(&self) -> &str {
+        &self.bundle_id
+    }
+
+    /// get bundle executable name reference
+    pub fn as_bundle_executable_name(&self) -> &str {
+        &self.bundle_executable_name
+    }
+
+    /// get organization reference
+    pub fn as_organization(&self) -> &str {
+        &self.organization
+    }
+
+    /// Parses application information from an Info.plist file.
+    ///
+    /// Doc:
+    /// Reads a plist file and extracts the metadata required by
+    /// the scanning system.
+    ///
+    /// Required fields:
+    ///
+    /// - `CFBundleIdentifier`
+    /// - `CFBundleExecutable`
+    ///
+    /// Application name is resolved using:
+    ///
+    /// 1. `CFBundleDisplayName`
+    /// 2. Application bundle filename
+    ///
+    /// The organization value is derived from the bundle
+    /// identifier.
+    ///
+    /// Design:
+    ///
+    /// This value is used as an additional matching signal when
+    /// searching for associated files.
+    ///
+    /// Example:
+    ///
+    ///     com.apple.Safari      -> apple
+    ///     com.google.Chrome    -> google
+    ///     org.mozilla.firefox  -> mozilla
+    ///
+    /// ```text
+    /// com.apple.Safari
+    ///     └── apple
+    /// ```
+    ///
+    /// Returns an error when required fields are missing or the
+    /// plist structure is invalid.
+    ///
+    /// Note:
+    /// Only a subset of available plist fields is parsed because
+    /// the scanner requires application identity rather than
+    /// complete bundle metadata.
+    fn parse_info_plist(plist_path: &Path, app_path: &Path) -> Result<Self> {
+        let plist = Value::from_file(plist_path).map_err(|e| {
+            ErrorKind::failed()
+                .with_summary("Failed to read plist file")
+                .with_reason(format!("{}: {}", plist_path.display(), e))
+        })?;
+
+        let dict = plist.as_dictionary().ok_or_else(|| {
+            ErrorKind::failed()
+                .with_summary("Invalid plist structure")
+                .with_reason("The parsed plist root is not a dictionary mapping")
+        })?;
+
+        let bundle_id = dict
+            .get("CFBundleIdentifier")
+            .and_then(|v| v.as_string())
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Missing bundle identifier")
+                    .with_reason("The required field 'CFBundleIdentifier' was missing or invalid")
+            })?
+            .to_string();
+
+        let name = dict
+            .get("CFBundleDisplayName")
+            .and_then(|v| v.as_string())
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                app_path
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().into_owned())
+            })
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Application identity resolution failed")
+                    .with_reason("Failed to determine application name from plist or bundle path")
+            })?;
+
+        let bundle_executable_name = dict
+            .get("CFBundleExecutable")
+            .and_then(|v| v.as_string())
+            .ok_or_else(|| {
+                ErrorKind::failed()
+                    .with_summary("Missing executable configuration")
+                    .with_reason("The required field 'CFBundleExecutable' was missing or invalid")
+            })?
+            .to_string();
+
+        let organization = bundle_id.split('.').nth(1).unwrap_or_default().to_string();
+
+        Ok(Self {
+            bundle_path: app_path.to_path_buf(),
+            name,
+            bundle_id,
+            bundle_executable_name,
+            organization,
+        })
     }
 }

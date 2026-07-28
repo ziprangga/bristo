@@ -34,9 +34,8 @@
 //! 1. Create an `AppProfile` from an application path.
 //! 2. Discover running processes.
 //! 3. Scan package receipts and BOM files.
-//! 4. Scan associated application files.
-//! 5. Scan BTM (Background Task Management) files.
-//! 6. Retrieve discovered filesystem entries.
+//! 4. Scan application-associated paths.
+//! 5. Retrieve discovered filesystem entries.
 //!
 //! The module separates application information into dedicated
 //! containers:
@@ -44,7 +43,7 @@
 //! - `AppMetadata` stores application information.
 //! - `AppProcs` stores discovered running processes.
 //! - `AppLogReceipt` stores package receipt and BOM metadata.
-//! - `PathEntry` stores application, associated, and BTM paths.
+//! - PathEntry stores application and discovered associated paths.
 //!
 //! `AppProfile` provides a single aggregate state used by the
 //! cleanup workflow while delegating discovery details to the
@@ -57,22 +56,17 @@
 //!..
 
 mod bom_receipt;
-mod info_plist;
 mod metadata;
 mod path_entry;
 mod processed;
 
 pub use bom_receipt::AppLogReceipt;
-pub use info_plist::InfoPlist;
+
 pub use metadata::AppMetadata;
 pub use path_entry::PathEntry;
-
 pub use processed::{AppProcs, Proc};
 
 use crate::errors::Result;
-use crate::locations_scan::BtmLocations;
-use crate::locations_scan::ReceiptsLocations;
-use crate::locations_scan::ScanLocations;
 use crate::path_data::PathData;
 use mini_logger::debug;
 use std::path::Path;
@@ -91,7 +85,6 @@ use std::path::Path;
 /// - Application metadata.
 /// - Running processes.
 /// - Package receipt information.
-/// - BOM metadata.
 /// - Discovered filesystem paths.
 ///
 /// Discovery operations progressively populate the profile:
@@ -109,8 +102,10 @@ use std::path::Path;
 /// PathEntry
 ///      │
 ///      ├─ Application bundle
-///      ├─ Associated files
-///      └─ BTM files
+///      └─ Associated paths
+///          ├─ Application files
+///          ├─ Sandbox containers
+///          └─ BTM entries
 /// ```
 ///
 /// Once populated, `PathEntry` provides access to all discovered
@@ -145,7 +140,7 @@ impl AppProfile {
 
     pub fn from_path(app_path: &Path) -> Result<Self> {
         let app_metadata = AppMetadata::from_path(app_path)?;
-        let path_entry = PathEntry::from_path_and_metadata(app_path, &app_metadata);
+        let path_entry = PathEntry::from_metadata(&app_metadata);
 
         Ok(Self {
             app_metadata: app_metadata,
@@ -167,6 +162,12 @@ impl AppProfile {
         &self.app_log_receipt
     }
 
+    pub fn as_path_entry(&self) -> &PathEntry {
+        &self.path_entry
+    }
+
+    // =================Scanner========================================
+    // Scan processed
     pub fn find_pid_and_command(&mut self) {
         self.app_procs = AppProcs::find_app_processes(&self.app_metadata);
 
@@ -184,54 +185,40 @@ impl AppProfile {
     /// Scans package receipts and BOM metadata for the application.
     ///
     /// The progress callback reports the current scanning progress.
-    pub fn find_log_bom<F>(&mut self, locations: &ReceiptsLocations, progress: F)
+    pub fn find_log_bom<F>(&mut self, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.app_log_receipt
-            .scan_bom_files(&self.app_metadata, locations, progress);
+            .scan_bom_files(&self.app_metadata, progress);
     }
 
-    /// Scans filesystem locations for files associated with the application.
+    /// Scans for filesystem paths associated with the application.
     ///
-    /// The discovered paths are stored inside `PathEntry`.
+    /// Discovery includes traditional application files,
+    /// sandbox containers, and BTM-related entries.
+    ///
+    /// The discovered paths are normalized, deduplicated,
+    /// and stored inside `PathEntry`.
     ///
     /// The progress callback reports the current scanning progress.
-    pub fn find_associate_files<F>(&mut self, locations: &ScanLocations, progress: F)
+    pub fn find_associated_paths<F>(&mut self, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.path_entry
-            .scan_asc_files(&self.app_metadata, locations, progress);
+            .scan_associated_paths(&self.app_metadata, progress)
     }
 
-    /// Scans Background Task Management (BTM) locations.
+    // ========================Setter==========================================
+    /// Updates stored path information after a cleanup attempt.
     ///
-    /// The discovered paths are stored inside `PathEntry`.
-    ///
-    /// The progress callback reports the current scanning progress.
-    pub fn find_btm_files<F>(&mut self, locations: &BtmLocations, progress: F)
-    where
-        F: Fn(usize, &Path) + Send + Sync + Clone,
-    {
-        self.path_entry
-            .scan_btm_files(&self.app_metadata, locations, progress);
-    }
-
-    pub fn path_entry(&self) -> &PathEntry {
-        &self.path_entry
-    }
-
-    /// Updates stored filesystem entries using failed cleanup paths.
-    ///
-    /// Paths provided in `failed` are used to rebuild the remaining
-    /// application entries after a cleanup operation.
+    /// Paths provided in `failed` represent entries that could not
+    /// be removed and are used to rebuild the remaining discovery
+    /// state.
     pub fn update_path_entry(&mut self, failed: &[PathData]) {
         self.path_entry.update_entry(failed);
     }
-    // pub fn path_entry_mut(&mut self) -> &mut PathEntry {
-    //     &mut self.path_entry
-    // }
 
     /// Clears all stored application state.
     ///
@@ -240,9 +227,9 @@ impl AppProfile {
     ///
     /// All discovery results are discarded, including:
     ///
-    /// - Metadata.
-    /// - Processes.
-    /// - BOM Receipts.
+    /// - Application metadata.
+    /// - Running processes.
+    /// - Receipt records.
     /// - Discovered filesystem paths.
     ///
     /// Note:

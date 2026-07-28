@@ -250,17 +250,22 @@ where
 /// Container scanning is intentionally separate from
 /// `scan_general()` because its discovery strategy differs
 /// substantially from normal filesystem traversal.
-pub fn scan_container<T, FMatch, FBuild>(
+pub fn scan_container<T, FProgress, FMatch, FBuild>(
     locations: &[PathBuf],
     patterns: &[PathBuf],
+    progress: FProgress,
     is_match: FMatch,
     build: FBuild,
 ) -> Vec<T>
 where
     T: Send,
+    FProgress: Fn(usize, &Path) + Send + Sync,
     FMatch: Fn(&Path) -> bool + Send + Sync,
     FBuild: Fn(&Path, &Path) -> T + Send + Sync,
 {
+    let counter = Arc::new(AtomicUsize::new(0));
+    let progress = Arc::new(progress);
+
     locations
         .par_iter()
         .filter(|base| base.exists())
@@ -272,6 +277,11 @@ where
                 .filter(|entry| entry.depth() == 1 && entry.file_type().is_dir())
                 .filter_map(|entry| {
                     let container_dir = entry.path().to_path_buf();
+
+                    let n = counter.fetch_add(1, Ordering::Relaxed) + 1;
+                    if n.is_multiple_of(256) {
+                        progress(n, &container_dir);
+                    }
 
                     patterns.par_iter().find_map_any(|pattern| {
                         let pattern_dir = container_dir.join(pattern);

@@ -63,46 +63,46 @@
 
 use std::path::{Path, PathBuf};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
-pub enum SourceKind {
-    App,
-    Btm,
-    Associated,
-}
+// #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+// pub enum SourceKind {
+//     App,
+//     Btm,
+//     Associated,
+// }
 
-impl SourceKind {
-    pub fn as_str(&self) -> &str {
-        match self {
-            Self::App => "App",
-            Self::Btm => "btm",
-            Self::Associated => "Associated",
-        }
-    }
-}
+// impl SourceKind {
+//     pub fn as_str(&self) -> &str {
+//         match self {
+//             Self::App => "App",
+//             Self::Btm => "btm",
+//             Self::Associated => "Associated",
+//         }
+//     }
+// }
 
 #[derive(Debug, Clone, Default)]
 pub struct PathData {
     path: PathBuf,
     name: String,
-    kind: Option<SourceKind>,
+    // kind: Option<SourceKind>,
 }
 
 impl PathData {
-    pub fn new(path: PathBuf, name: String, kind: SourceKind) -> Self {
+    pub fn new(path: PathBuf, name: String) -> Self {
         Self {
             path,
             name,
-            kind: Some(kind),
+            // kind: Some(kind),
         }
     }
 
-    pub fn new_without_kind(path: PathBuf, name: String) -> Self {
-        Self {
-            path,
-            name,
-            kind: None,
-        }
-    }
+    // pub fn new_without_kind(path: PathBuf, name: String) -> Self {
+    //     Self {
+    //         path,
+    //         name,
+    //         kind: None,
+    //     }
+    // }
 
     pub fn as_path(&self) -> &Path {
         &self.path
@@ -112,9 +112,9 @@ impl PathData {
         &self.name
     }
 
-    pub fn as_kind(&self) -> Option<SourceKind> {
-        self.kind
-    }
+    // pub fn as_kind(&self) -> Option<SourceKind> {
+    //     self.kind
+    // }
 }
 
 /// User-facing path formatter.

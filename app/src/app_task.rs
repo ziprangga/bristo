@@ -118,7 +118,6 @@ pub async fn scan_app_async(
     let app_name = cleaner
         .as_app_profile()
         .as_app_metadata()
-        .as_info()
         .as_name()
         .to_string();
 
@@ -157,7 +156,7 @@ pub async fn scan_app_async(
             .with_reason(format!("Task execution panicked: {}", e))
     })??;
 
-    let total_founded = cleaner.as_app_profile().path_entry().all_paths().len();
+    let total_founded = cleaner.as_app_profile().as_path_entry().all_paths().len();
     status_emit!(
         async,
         emitter.as_deref(),

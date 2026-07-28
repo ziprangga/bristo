@@ -40,10 +40,8 @@
 //! before removal.
 //!
 //! Note:
-//! This module represents runtime state only.
-//! Unlike receipt, associated-file, and BTM scanners, the
-//! discovered information reflects the current system state and
-//! may change between scans.
+//! The information returned by this module reflects
+//! the current process table and may change between scans.
 //!..
 
 use crate::app_profile::metadata::AppMetadata;
@@ -52,7 +50,7 @@ use rayon::prelude::*;
 use std::ffi::OsString;
 use sysinfo::{ProcessesToUpdate, System};
 
-/// Running process information.
+/// Snapshot of a running process.
 ///
 /// Doc:
 /// Represents a single process discovered during runtime
@@ -80,7 +78,7 @@ pub struct Proc {
 }
 
 impl Proc {
-    /// Contruct Proc
+    /// Construct a Proc.
     pub fn new(pid: i32, command: String, name: String) -> Self {
         Self { pid, command, name }
     }
@@ -126,10 +124,12 @@ pub struct AppProcs {
 }
 
 impl AppProcs {
+    /// Returns all discovered processes.
     pub fn list(&self) -> &[Proc] {
         &self.processes
     }
 
+    /// Returns true when no matching processes were found.
     pub fn is_empty(&self) -> bool {
         self.processes.is_empty()
     }
@@ -150,8 +150,8 @@ impl AppProcs {
     /// Both the process name and complete command line are
     /// inspected when evaluating matches.
     ///
-    /// Matching processes are collected and returned as an
-    /// `AppProcs` instance.
+    /// Matching processes are collected into a new
+    /// `AppProcs` instance and returned to the caller.
     ///
     /// Design:
     /// Process identification relies on multiple metadata-derived
@@ -194,15 +194,12 @@ impl AppProcs {
         //
         // A helper pattern is therefore included as an additional
         // matching signal during process discovery.
-        let helper = format!(
-            "{} Helper",
-            app_metadata.as_info().as_bundle_executable_name()
-        );
+        let helper = format!("{} Helper", app_metadata.as_bundle_executable_name());
 
         let patterns = [
-            app_metadata.as_info().as_bundle_executable_name(),
-            app_metadata.as_info().as_bundle_id(),
-            app_metadata.as_info().as_organization(),
+            app_metadata.as_bundle_executable_name(),
+            app_metadata.as_bundle_id(),
+            app_metadata.as_organization(),
             helper.as_str(),
         ];
 

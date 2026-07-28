@@ -27,6 +27,8 @@
 //! BOM (Bill of Materials) files generated during package
 //! installation.
 //!
+//! At present, discovery is limited to BOM receipt files.
+//!
 //! Receipt information is useful for:
 //!
 //! - Installation auditing.
@@ -78,29 +80,29 @@ pub struct AppLogReceipt {
 }
 
 impl AppLogReceipt {
-    /// New contruct
+    /// Creates a new receipt collection.
     pub fn new(bom_files: &[PathData]) -> Self {
         Self {
             bom_files: bom_files.to_vec(),
         }
     }
 
-    //// get bom file as reference
+    /// Returns all discovered BOM files.
     pub fn as_bom_files(&self) -> &[PathData] {
         &self.bom_files
     }
 
-    //// total of bom_file count
+    /// Returns the number of discovered BOM files.
     pub fn count(&self) -> usize {
         self.bom_files.len()
     }
 
-    //// check if bom_file is empty or not
+    /// Returns true when no BOM files have been discovered.
     pub fn is_empty(&self) -> bool {
         self.bom_files.is_empty()
     }
 
-    /// Update btm files with given list
+    /// Updates the collection with the provided BOM files.
     pub fn set_bom_files(&mut self, btm_data: Vec<PathData>) {
         self.bom_files = btm_data;
     }
@@ -148,36 +150,34 @@ impl AppLogReceipt {
     /// Note:
     /// Existing receipt records are replaced when scanning
     /// completes.
-    pub fn scan_bom_files<F>(
-        &mut self,
-        app_metadata: &AppMetadata,
-        locations: &ReceiptsLocations,
-        progress: F,
-    ) where
+    pub fn scan_bom_files<F>(&mut self, app_metadata: &AppMetadata, progress: F)
+    where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         self.bom_files.clear();
-        let results: Vec<PathData> = scan_general(
-            locations.as_paths(),
-            1,
-            |n, path| progress(n, path),
-            |path| {
-                path.extension().map(|ext| ext == "bom").unwrap_or(false)
-                    && MatchRules::new()
-                        .contain(app_metadata.as_info().as_name())
-                        .contain(app_metadata.as_info().as_bundle_executable_name())
-                        .contain(app_metadata.as_info().as_organization())
-                        .contain(app_metadata.as_info().as_bundle_id())
-                        .check(&path)
-            },
-            |path_buf: PathBuf| {
-                let name = path_buf
-                    .file_name()
-                    .map(|n| n.to_string_lossy().to_string())
-                    .unwrap_or_default();
-                PathData::new_without_kind(path_buf, name)
-            },
-        );
+
+        let locations_dir = ReceiptsLocations::new();
+        let locations_scan = locations_dir.as_paths();
+
+        let matcher = |path: &Path| {
+            path.extension().map(|ext| ext == "bom").unwrap_or(false)
+                && MatchRules::new()
+                    .contain(app_metadata.as_name())
+                    .contain(app_metadata.as_bundle_executable_name())
+                    .contain(app_metadata.as_organization())
+                    .contain(app_metadata.as_bundle_id())
+                    .check(&path)
+        };
+
+        let builder = |path_buf: PathBuf| {
+            let name = path_buf
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            PathData::new(path_buf, name)
+        };
+
+        let results: Vec<PathData> = scan_general(locations_scan, 1, progress, matcher, builder);
 
         let filtered = construct_scanner_result(results, None, |item: &PathData| item.as_path());
 
