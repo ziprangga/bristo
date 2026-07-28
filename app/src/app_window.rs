@@ -3,7 +3,7 @@ use iced::widget::Stack;
 use iced::widget::text::Wrapping;
 use iced::{
     Border, Color, Padding, alignment,
-    widget::{Container, Row, Space, Text, button, container, row, text},
+    widget::{Container, Row, Space, Text, button, container, text},
 };
 use iced::{Element, Length};
 
@@ -64,19 +64,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         .map(|(i, entry)| {
             let label = entry.as_name().to_string();
             let path = entry.as_path().to_path_buf();
-
-            // ===============
-
-            // let display_path = match std::env::var("HOME") {
-            //     Ok(home) => match path.strip_prefix(&home) {
-            //         Ok(stripped) => format!("~/{}", stripped.to_string_lossy()),
-            //         Err(_) => path.to_string_lossy().to_string(),
-            //     },
-            //     Err(_) => path.to_string_lossy().to_string(),
-            // };
             let display_path = entry.to_string();
-
-            // ===================
 
             let icon_element: iced::Element<_> = match state.get_cached_icon(&path) {
                 Some(icon_handle) => iced::widget::image(icon_handle)
@@ -211,42 +199,43 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         .width(Length::Shrink)
     };
 
-    let result_msg = match &state.show_status.status_result() {
-        Some(result) => result.to_string(),
-        None => String::new(),
-    };
+    let status = Column::new().width(Length::Fill).spacing(10);
 
-    let event_msg = match state.show_status.status_event() {
-        Some(event) => event.to_string(),
-        None => String::new(),
-    };
-
-    let status_result = Container::new(
-        text(result_msg)
-            .size(12)
+    let status = match &state.show_status.status_result() {
+        Some(result) => status.push(
+            Container::new(
+                text(result.to_string())
+                    .size(12)
+                    .width(Length::Fill)
+                    .center()
+                    .style(|_| text::Style {
+                        color: Some(Color::from_rgb8(255, 150, 0)),
+                    }),
+            )
             .width(Length::Fill)
-            .center()
-            .style(|_| text::Style {
-                color: Some(Color::from_rgb8(200, 200, 200)),
-            }),
-    )
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+        ),
+        None => status,
+    };
 
-    let status_event = Container::new(text(event_msg).size(12).width(Length::Fill).center().style(
-        |_| text::Style {
-            color: Some(Color::from_rgb8(200, 200, 200)),
-        },
-    ))
-    .width(Length::Fill)
-    .align_x(alignment::Horizontal::Center)
-    .align_y(alignment::Vertical::Center);
-
-    let status = Column::new()
-        .push(status_result)
-        .push(status_event)
-        .spacing(10);
+    let status = match &state.show_status.status_event() {
+        Some(event) => status.push(
+            Container::new(
+                text(event.to_string())
+                    .size(12)
+                    .width(Length::Fill)
+                    .center()
+                    .style(|_| text::Style {
+                        color: Some(Color::from_rgb8(200, 200, 200)),
+                    }),
+            )
+            .width(Length::Fill)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(alignment::Vertical::Center),
+        ),
+        None => status,
+    };
 
     let button_delete = Container::new(
         button(text("Move to Trash").size(12))
@@ -301,7 +290,9 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
     });
 
     let bottom = Container::new(
-        row![status, button_delete,]
+        Row::new()
+            .push(status)
+            .push(button_delete)
             .align_y(alignment::Vertical::Center)
             .spacing(5),
     )

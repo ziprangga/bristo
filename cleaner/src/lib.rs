@@ -343,9 +343,9 @@ impl Cleaner {
         Ok(self)
     }
 
-    pub fn restore_moved_path(&self) -> Result<()> {
-        Ok(println!("to do"))
-    }
+    // pub fn restore_moved_path(&self) -> Result<()> {
+    //     Ok(println!("to do"))
+    // }
 
     pub fn show_in_finder(path: &Path) -> Result<()> {
         syscom::show_in_finder(path)

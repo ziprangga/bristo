@@ -198,26 +198,26 @@ impl TrashEntry {
         Ok(result)
     }
 
-    /// Restores trashed items.
-    ///
-    /// Doc:
-    /// Attempts to restore previously trashed items back to
-    /// their original locations.
-    ///
-    /// Design:
-    /// Restoration support is planned but not currently
-    /// implemented.
-    ///
-    /// Future implementations may use the stored trash location
-    /// together with the original source path to perform the
-    /// restore operation.
-    ///
-    /// Note:
-    /// Calling this function currently performs no restore
-    /// operation.
-    pub fn put_back(&self, _from_trash: &[TrashItem]) -> Result<()> {
-        Ok(println!("to do"))
-    }
+    // /// Restores trashed items.
+    // ///
+    // /// Doc:
+    // /// Attempts to restore previously trashed items back to
+    // /// their original locations.
+    // ///
+    // /// Design:
+    // /// Restoration support is planned but not currently
+    // /// implemented.
+    // ///
+    // /// Future implementations may use the stored trash location
+    // /// together with the original source path to perform the
+    // /// restore operation.
+    // ///
+    // /// Note:
+    // /// Calling this function currently performs no restore
+    // /// operation.
+    // pub fn put_back(&self, _from_trash: &[TrashItem]) -> Result<()> {
+    //     Ok(println!("to do"))
+    // }
 
     pub fn moved_path(&self) -> &[TrashItem] {
         &self.moved_path
