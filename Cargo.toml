@@ -19,7 +19,7 @@ rayon = "1.11"
 sysinfo = "0.37"
 
 # ====================
-mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false, tag = "v0.1.2"}
+mini-logger = { git = "https://github.com/ziprangga/mini-logger.git", default-features = false, tag = "v0.1.5"}
 simple-status = { git = "https://github.com/ziprangga/simple-status.git", tag = "v0.1.10"}
 tokio = { version = "1.49", features = ["full"] }
 rfd = "0.17"

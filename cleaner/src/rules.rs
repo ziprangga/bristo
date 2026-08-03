@@ -13,34 +13,51 @@
 // limitations under the License.
 
 //! Doc:
-//! Path matching rules used by scanner components.
+//! Matching rules used by scanner and discovery components.
 //!
 //! This module provides lightweight matching utilities for
-//! determining whether a filesystem entry may belong to an
-//! application.
+//! determining whether a filesystem entry or text value may
+//! belong to an application.
 //!
 //! Supported matching strategies include:
 //!
-//! - Exact filename matching.
-//! - Partial filename matching.
+//! - Exact matching.
+//! - Partial matching.
+//!
+//! Supported targets include:
+//!
+//! - Filesystem paths.
+//! - Filenames.
+//! - Process names.
+//! - Command lines.
+//! - Application identifiers.
 //!
 //! Design:
-//! Scanner components operate on large collections of files and
-//! directories.
+//! Different scanners operate on different kinds of data.
 //!
-//! Matching is intentionally performed against the final path
-//! component (file or directory name) rather than the entire
-//! path.
+//! Filesystem scanners typically evaluate path names,
+//! while process scanners evaluate process names and
+//! command lines.
 //!
-//! This keeps comparisons predictable and avoids false matches
-//! caused by unrelated parent directories.
+//! Rather than implementing separate matching systems,
+//! matching behavior is centralized in `MatchRules` and
+//! applied consistently across both path-based and
+//! string-based discovery.
 //!
-//! Matching behavior is implemented through composable rules
-//! collected by `MatchRules`.
+//! Path matching is intentionally performed against the
+//! final path component (file or directory name) rather
+//! than the complete path.
+//!
+//! This keeps comparisons predictable and avoids false
+//! matches caused by unrelated parent directories.
+//!
+//! Matching behavior is implemented through composable
+//! rules collected by `MatchRules`.
 //!
 //! Note:
-//! Matching is case-insensitive and Unicode-normalized to
-//! improve compatibility with macOS filesystem behavior.
+//! Matching is case-insensitive and Unicode-normalized
+//! to improve compatibility with macOS filesystem
+//! behavior and process metadata comparisons.
 //!..
 
 use std::path::Path;
@@ -52,13 +69,6 @@ enum Rules {
 }
 
 impl Rules {
-    fn match_path(&self, path: &Path, value: &str) -> bool {
-        match self {
-            Rules::Equal => self.path_equals_ignore_case(path, value),
-            Rules::Contain => self.path_contains_ignore_case(path, value),
-        }
-    }
-
     /// Normalizes text for filesystem comparison.
     ///
     /// Doc:
@@ -92,8 +102,64 @@ impl Rules {
             .to_lowercase() // lowercase for case-insensitive comparison
     }
 
-    /// Compare PathBuf or filenames using contains
+    /// Evaluates a path against a matching rule.
+    ///
+    /// Doc:
+    /// Dispatches path matching to the appropriate
+    /// comparison strategy associated with the rule.
+    ///
+    /// Note:
+    /// Matching is performed against the final path
+    /// component rather than the complete path.
+    fn match_path(&self, path: &Path, value: &str) -> bool {
+        match self {
+            Rules::Equal => self.path_equals_ignore_case(path, value),
+            Rules::Contain => self.path_contains_ignore_case(path, value),
+        }
+    }
+
+    /// Evaluates a string against a matching rule.
+    ///
+    /// Doc:
+    /// Dispatches string matching to the appropriate
+    /// comparison strategy associated with the rule.
+    ///
+    /// Design:
+    /// This method is primarily used by process and
+    /// metadata scanners where matching targets are
+    /// plain text rather than filesystem paths.
+    ///
+    /// Note:
+    /// Matching is case-insensitive and Unicode-normalized.
+    fn match_string(&self, text: &str, value: &str) -> bool {
+        match self {
+            Rules::Equal => self.string_equals_ignore_case(text, value),
+            Rules::Contain => self.string_contains_ignore_case(text, value),
+        }
+    }
+
+    /// Performs case-insensitive substring matching on a path name.
+    ///
+    /// Doc:
+    /// Returns true when the final component of the provided
+    /// path contains the specified value.
+    ///
+    /// Design:
+    /// Matching is performed against `file_name()` rather
+    /// than the complete path.
+    ///
+    /// This avoids matches caused solely by parent directory
+    /// names and keeps comparisons focused on the actual
+    /// filesystem entry being evaluated.
+    ///
+    /// Note:
+    /// Matching is Unicode-normalized and case-insensitive.
+    /// Empty search values never match.
     fn path_contains_ignore_case(&self, path: &Path, needle: &str) -> bool {
+        if needle.trim().is_empty() {
+            return false;
+        }
+
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             self.normalize_lowercase(name)
                 .contains(&self.normalize_lowercase(needle))
@@ -102,13 +168,78 @@ impl Rules {
         }
     }
 
-    /// Compare PathBuf or filenames using equals value
+    /// Performs case-insensitive exact matching on a path name.
+    ///
+    /// Doc:
+    /// Returns true when the final component of the provided
+    /// path exactly matches the specified value.
+    ///
+    /// Design:
+    /// Matching is performed against `file_name()` rather
+    /// than the complete path.
+    ///
+    /// This keeps matching behavior predictable and avoids
+    /// false positives originating from unrelated parent
+    /// directories.
+    ///
+    /// Note:
+    /// Matching is Unicode-normalized and case-insensitive.
+    /// Empty values never match.
     fn path_equals_ignore_case(&self, path: &Path, value: &str) -> bool {
+        if value.trim().is_empty() {
+            return false;
+        }
+
         if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
             self.normalize_lowercase(name) == self.normalize_lowercase(value)
         } else {
             false
         }
+    }
+
+    /// Performs case-insensitive substring matching on text.
+    ///
+    /// Doc:
+    /// Returns true when the provided text contains the
+    /// specified value.
+    ///
+    /// Design:
+    /// This method is used for matching non-filesystem
+    /// values such as process names, command lines,
+    /// bundle identifiers, and other application metadata.
+    ///
+    /// Note:
+    /// Matching is Unicode-normalized and case-insensitive.
+    /// Empty search values never match.
+    fn string_contains_ignore_case(&self, text: &str, needle: &str) -> bool {
+        if needle.trim().is_empty() {
+            return false;
+        }
+
+        self.normalize_lowercase(text)
+            .contains(&self.normalize_lowercase(needle))
+    }
+
+    /// Performs case-insensitive exact matching on text.
+    ///
+    /// Doc:
+    /// Returns true when the provided text exactly matches
+    /// the specified value.
+    ///
+    /// Design:
+    /// This method is used for matching non-filesystem
+    /// values such as process names, command lines,
+    /// bundle identifiers, and other application metadata.
+    ///
+    /// Note:
+    /// Matching is Unicode-normalized and case-insensitive.
+    /// Empty values never match.
+    fn string_equals_ignore_case(&self, text: &str, value: &str) -> bool {
+        if value.trim().is_empty() {
+            return false;
+        }
+
+        self.normalize_lowercase(text) == self.normalize_lowercase(value)
     }
 }
 
@@ -116,14 +247,18 @@ impl Rules {
 ///
 /// Doc:
 /// Stores a set of matching rules used to evaluate whether a
-/// filesystem entry appears related to an application.
+/// filesystem entry or text value appears related to an
+/// application.
 ///
 /// Rules can be combined using a builder-style API:
 ///
 /// - `equal()`
 /// - `contain()`
 ///
-/// The collection is evaluated through `check()`.
+/// The collection is evaluated through:
+///
+/// - `check_path()`
+/// - `check_string()`
 ///
 /// Design:
 /// Matching requirements vary across scanners.
@@ -150,6 +285,59 @@ impl<'a> MatchRules<'a> {
         Self { rules: Vec::new() }
     }
 
+    /// Returns the number of registered matching rules.
+    ///
+    /// Doc:
+    /// Returns the total count of rules currently stored in
+    /// the matcher.
+    ///
+    /// Design:
+    /// Rules are added through the builder-style API using
+    /// methods such as:
+    ///
+    /// - `equal()`
+    /// - `contain()`
+    ///
+    /// Empty values are ignored and therefore do not
+    /// contribute to the returned count.
+    ///
+    /// Note:
+    /// The returned value reflects only valid stored rules.
+    pub fn len(&self) -> usize {
+        self.rules.len()
+    }
+
+    /// Returns whether no matching rules are registered.
+    ///
+    /// Doc:
+    /// Indicates whether the matcher currently contains
+    /// any valid rules.
+    ///
+    /// Design:
+    /// This method provides a convenient way for callers
+    /// to detect when rule construction produced no usable
+    /// matching criteria.
+    ///
+    /// This can occur when all supplied values were empty
+    /// or whitespace-only and were therefore discarded by
+    /// the builder methods.
+    ///
+    /// Example:
+    ///
+    /// ```text
+    /// MatchRules::new()
+    ///     .equal("")
+    ///     .contain("")
+    /// ```
+    ///
+    /// Produces an empty matcher.
+    ///
+    /// Note:
+    /// Equivalent to `len() == 0`.
+    pub fn is_empty(&self) -> bool {
+        self.rules.is_empty()
+    }
+
     /// Adds a substring matching rule.
     ///
     /// Doc:
@@ -159,7 +347,12 @@ impl<'a> MatchRules<'a> {
     /// Note:
     /// Matching is case-insensitive and Unicode-normalized.
     pub fn contain(mut self, value: &'a str) -> Self {
-        self.rules.push((Rules::Contain, value));
+        // self.rules.push((Rules::Contain, value));
+        // self
+        if !value.trim().is_empty() {
+            self.rules.push((Rules::Contain, value));
+        }
+
         self
     }
 
@@ -172,7 +365,12 @@ impl<'a> MatchRules<'a> {
     /// Note:
     /// Matching is case-insensitive and Unicode-normalized.
     pub fn equal(mut self, value: &'a str) -> Self {
-        self.rules.push((Rules::Equal, value));
+        // self.rules.push((Rules::Equal, value));
+        // self
+        if !value.trim().is_empty() {
+            self.rules.push((Rules::Equal, value));
+        }
+
         self
     }
 
@@ -213,9 +411,42 @@ impl<'a> MatchRules<'a> {
     /// Note:
     /// Matching is performed against the final path component
     /// (`file_name`) rather than the complete path.
-    pub fn check(&self, path: &Path) -> bool {
+    pub fn check_path(&self, path: &Path) -> bool {
         self.rules
             .iter()
             .any(|(rule, value)| rule.match_path(path, value))
+    }
+
+    /// Evaluates all registered rules against a string.
+    ///
+    /// Doc:
+    /// Tests the provided text against every configured
+    /// matching rule.
+    ///
+    /// Design:
+    /// Rules are evaluated using logical OR semantics.
+    ///
+    /// The comparison is:
+    ///
+    /// - Case-insensitive.
+    /// - Unicode-normalized.
+    ///
+    /// A string is considered a match when at least one
+    /// registered rule succeeds.
+    ///
+    /// This method is intended for matching non-filesystem
+    /// values such as:
+    ///
+    /// - Process names.
+    /// - Command lines.
+    /// - Bundle identifiers.
+    /// - Application metadata.
+    ///
+    /// Note:
+    /// Empty rules never produce a match.
+    pub fn check_string(&self, text: &str) -> bool {
+        self.rules
+            .iter()
+            .any(|(rule, value)| rule.match_string(text, value))
     }
 }

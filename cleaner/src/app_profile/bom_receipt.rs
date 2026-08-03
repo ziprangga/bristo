@@ -166,7 +166,7 @@ impl AppLogReceipt {
                     .contain(app_metadata.as_bundle_executable_name())
                     .contain(app_metadata.as_organization())
                     .contain(app_metadata.as_bundle_id())
-                    .check(&path)
+                    .check_path(&path)
         };
 
         let builder = |path_buf: PathBuf| {

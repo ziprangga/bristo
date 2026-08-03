@@ -31,7 +31,6 @@
 //!
 //! - Executable name.
 //! - Bundle identifier.
-//! - Organization identifier.
 //! - Common helper process names.
 //!
 //! Runtime process information is used by higher-level cleanup
@@ -45,6 +44,7 @@
 //!..
 
 use crate::app_profile::metadata::AppMetadata;
+use crate::rules::MatchRules;
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::ffi::OsString;
@@ -82,6 +82,7 @@ impl Proc {
     pub fn new(pid: i32, command: String, name: String) -> Self {
         Self { pid, command, name }
     }
+
     /// get the copy of pid
     pub fn pid(&self) -> i32 {
         self.pid
@@ -144,41 +145,53 @@ impl AppProcs {
     ///
     /// - Executable name.
     /// - Bundle identifier.
-    /// - Organization identifier.
     /// - Common helper process names.
     ///
     /// Both the process name and complete command line are
     /// inspected when evaluating matches.
     ///
-    /// Matching processes are collected into a new
-    /// `AppProcs` instance and returned to the caller.
+    /// Matching logic is delegated to `MatchRules`, which
+    /// provides case-insensitive and Unicode-normalized
+    /// comparisons.
     ///
     /// Design:
-    /// Process identification relies on multiple metadata-derived
-    /// patterns rather than executable names alone.
+    /// Process identification relies on metadata-derived
+    /// matching rules rather than executable names alone.
     ///
     /// Many macOS applications launch helper processes,
-    /// background services, or child processes whose names may
+    /// background services, or child processes whose names
     /// differ from the primary application executable.
     ///
-    /// Examples:
+    /// A reusable `MatchRules` instance is constructed from
+    /// application metadata and applied to both process
+    /// names and command lines.
+    ///
+    /// This provides consistent matching behavior across
+    /// process discovery and filesystem scanning while
+    /// avoiding duplicated comparison logic.
+    ///
+    /// For example, helper processes are often named:
     ///
     /// ```text
     /// Google Chrome
     /// Google Chrome Helper
     ///
     /// Visual Studio Code
-    /// Code Helper
+    /// Visual Studio Code Helper
     /// ```
     ///
-    /// Matching against bundle identifiers, organization names,
-    /// and command-line arguments improves detection accuracy
-    /// across different application architectures.
+    /// Matching against executable names, bundle identifiers,
+    /// helper process names, and command-line arguments improves
+    /// detection accuracy across different application
+    /// architectures.
     ///
     /// Note:
     /// Process discovery is inherently heuristic-based and may
     /// produce false positives when unrelated processes contain
     /// similar identifiers.
+    ///
+    /// Empty metadata values do not generate matching rules
+    /// and are ignored during rule construction.
     pub fn find_app_processes(app_metadata: &AppMetadata) -> Self {
         let mut sys = System::new();
         sys.refresh_processes(ProcessesToUpdate::All, true);
@@ -196,12 +209,22 @@ impl AppProcs {
         // matching signal during process discovery.
         let helper = format!("{} Helper", app_metadata.as_bundle_executable_name());
 
-        let patterns = [
+        // Build matching rules from application metadata.
+        //
+        // Rules are reused against both process names and
+        // command lines to provide consistent matching
+        // behavior throughout discovery.
+        let rules = MatchRules::new()
+            .equal(app_metadata.as_bundle_executable_name())
+            .equal(&helper)
+            .contain(app_metadata.as_bundle_id());
+
+        debug!(
+            "Process matching rules: count={}, executable='{}', bundle_id='{}'",
+            rules.len(),
             app_metadata.as_bundle_executable_name(),
-            app_metadata.as_bundle_id(),
-            app_metadata.as_organization(),
-            helper.as_str(),
-        ];
+            app_metadata.as_bundle_id()
+        );
 
         let processes = sys
             .processes()
@@ -215,21 +238,24 @@ impl AppProcs {
                     .collect::<Vec<_>>()
                     .join(" ");
 
-                // Convert process.name() to string for pattern matching
+                // Convert process name into a UTF-8 string so it can
+                // be evaluated by MatchRules.
                 let process_name = process.name().to_string_lossy().to_string();
 
-                debug!(
-                    "PID {}: cmd_line = '{}', process = '{}', checking patterns {:?}",
-                    pid, cmd_line, process_name, patterns
-                );
-
-                // Match if command line contains pattern OR process name contains pattern
-                let is_match = patterns
-                    .iter()
-                    .any(|pat| cmd_line.contains(pat) || process_name.contains(pat));
+                // Match against both the process name and the full
+                // command line.
+                //
+                // Some applications expose useful identifiers only
+                // through command-line arguments while others expose
+                // them through the process name.
+                let is_match = rules.check_string(&process_name) || rules.check_string(&cmd_line);
 
                 if is_match {
-                    // Contruct the result
+                    debug!(
+                        "MATCH pid={} name='{}' cmd='{}'",
+                        pid, process_name, cmd_line
+                    );
+                    // Construct the result
                     Some(Proc::new(pid.as_u32() as i32, cmd_line, process_name))
                 } else {
                     None

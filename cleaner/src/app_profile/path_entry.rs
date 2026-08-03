@@ -272,7 +272,7 @@ impl PathEntry {
                 .equal(app_metadata.as_bundle_executable_name())
                 .contain(app_metadata.as_organization())
                 .contain(app_metadata.as_bundle_id())
-                .check(path)
+                .check_path(path)
         };
 
         let builder = |path_buf: PathBuf| {
@@ -321,7 +321,7 @@ impl PathEntry {
                 .equal(app_metadata.as_bundle_executable_name())
                 .contain(app_metadata.as_organization())
                 .contain(app_metadata.as_bundle_id())
-                .check(path)
+                .check_path(path)
         };
         let builder = |path_buf: PathBuf| {
             let name = path_buf
@@ -371,7 +371,7 @@ impl PathEntry {
         let is_match = |path: &Path| {
             MatchRules::new()
                 .contain(app_metadata.as_bundle_id())
-                .check(path)
+                .check_path(path)
         };
 
         let builder = |container_dir: &Path, _file_path: &Path| {
