@@ -95,6 +95,7 @@ pub struct AppMetadata {
     bundle_id: String,
     bundle_executable_name: String,
     organization: String,
+    alias_name: String,
 }
 
 impl AppMetadata {
@@ -105,6 +106,7 @@ impl AppMetadata {
         bundle_id: String,
         bundle_executable_name: String,
         organization: String,
+        alias_name: String,
     ) -> Self {
         Self {
             bundle_path,
@@ -112,6 +114,7 @@ impl AppMetadata {
             bundle_id,
             bundle_executable_name,
             organization,
+            alias_name,
         }
     }
 
@@ -225,6 +228,11 @@ impl AppMetadata {
         &self.organization
     }
 
+    /// get alias name reference
+    pub fn as_alias_name(&self) -> &str {
+        &self.alias_name
+    }
+
     /// Parses application information from an Info.plist file.
     ///
     /// Doc:
@@ -305,17 +313,43 @@ impl AppMetadata {
                     .with_reason("Failed to determine application name from plist or bundle path")
             })?;
 
-        let bundle_executable_name = dict
+        let bundle_executable_name = match dict
             .get("CFBundleExecutable")
             .and_then(|v| v.as_string())
-            .ok_or_else(|| {
-                ErrorKind::failed()
-                    .with_summary("Missing executable configuration")
-                    .with_reason("The required field 'CFBundleExecutable' was missing or invalid")
-            })?
-            .to_string();
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+        {
+            Some(executable) => executable.to_string(),
+            None => {
+                let binary_dir = app_path.join("Contents").join("MacOS");
+
+                let executable = std::fs::read_dir(&binary_dir)
+                    .ok()
+                    .and_then(|entries| {
+                        entries
+                            .filter_map(|e| e.ok())
+                            .find(|e| e.path().is_file())
+                    })
+                    .map(|entry| entry.file_name().to_string_lossy().into_owned())
+                    .ok_or_else(|| {
+                        ErrorKind::failed()
+                            .with_summary("Missing executable configuration")
+                            .with_reason(
+                                "CFBundleExecutable was missing or empty and no executable could be inferred",
+                            )
+                    })?;
+
+                executable
+            }
+        };
 
         let organization = bundle_id.split('.').nth(1).unwrap_or_default().to_string();
+
+        let alias_name = bundle_id
+            .rsplit_once('.')
+            .map(|(_, last)| last)
+            .unwrap_or_default()
+            .to_string();
 
         Ok(Self {
             bundle_path: app_path.to_path_buf(),
@@ -323,6 +357,7 @@ impl AppMetadata {
             bundle_id,
             bundle_executable_name,
             organization,
+            alias_name,
         })
     }
 }

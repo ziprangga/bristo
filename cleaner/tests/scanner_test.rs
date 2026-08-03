@@ -124,6 +124,7 @@ fn test_kill_processes_safe() -> cleaner::Result<()> {
         "com.example.test".to_string(),
         "NonExistent".to_string(),
         "example".to_string(),
+        "ex".to_string(),
     );
     let path_entry = cleaner::PathEntry::from_metadata(&app_metadata);
 

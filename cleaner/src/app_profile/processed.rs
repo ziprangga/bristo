@@ -217,13 +217,15 @@ impl AppProcs {
         let rules = MatchRules::new()
             .equal(app_metadata.as_bundle_executable_name())
             .equal(&helper)
-            .contain(app_metadata.as_bundle_id());
+            .contain(app_metadata.as_bundle_id())
+            .contain(app_metadata.as_alias_name());
 
         debug!(
-            "Process matching rules: count={}, executable='{}', bundle_id='{}'",
+            "Process matching rules: count={}, executable='{}', bundle_id='{}', alias='{}'",
             rules.len(),
             app_metadata.as_bundle_executable_name(),
-            app_metadata.as_bundle_id()
+            app_metadata.as_bundle_id(),
+            app_metadata.as_alias_name()
         );
 
         let processes = sys
