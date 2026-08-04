@@ -104,7 +104,7 @@ use walkdir::WalkDir;
 ///
 /// Note:
 /// Parent-path filtering occurs before duplicate removal.
-pub fn construct_scanner_result<T, FPath>(
+pub fn construct_and_deduplicate_paths<T, FPath>(
     mut results: Vec<T>,
     extra: Option<Vec<T>>,
     get_path: FPath,

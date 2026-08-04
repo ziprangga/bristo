@@ -56,7 +56,7 @@ use crate::app_profile::metadata::AppMetadata;
 use crate::locations_scan::ReceiptsLocations;
 use crate::path_data::PathData;
 use crate::rules::MatchRules;
-use crate::scanner::construct_scanner_result;
+use crate::scanner::construct_and_deduplicate_paths;
 use crate::scanner::scan_general;
 
 /// Collection of application receipt records.
@@ -179,7 +179,8 @@ impl AppLogReceipt {
 
         let results: Vec<PathData> = scan_general(locations_scan, 1, progress, matcher, builder);
 
-        let filtered = construct_scanner_result(results, None, |item: &PathData| item.as_path());
+        let filtered =
+            construct_and_deduplicate_paths(results, None, |item: &PathData| item.as_path());
 
         self.set_bom_files(filtered);
     }

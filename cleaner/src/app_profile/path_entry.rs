@@ -51,7 +51,7 @@ use crate::locations_scan::ScanLocations;
 use crate::path_data::PathData;
 use crate::rules::MatchRules;
 
-use crate::scanner::construct_scanner_result;
+use crate::scanner::construct_and_deduplicate_paths;
 use crate::scanner::scan_container;
 use crate::scanner::scan_general;
 
@@ -135,7 +135,10 @@ impl PathEntry {
 
         paths.extend(self.associated_paths.iter().cloned());
 
-        paths
+        let all_paths =
+            construct_and_deduplicate_paths(paths, None, |item: &PathData| item.as_path());
+
+        all_paths
     }
 
     // ===========================Scanner===============================
@@ -175,7 +178,9 @@ impl PathEntry {
         associated_paths.extend(btm_files);
 
         let filtered_associated_paths =
-            construct_scanner_result(associated_paths, None, |item: &PathData| item.as_path());
+            construct_and_deduplicate_paths(associated_paths, None, |item: &PathData| {
+                item.as_path()
+            });
 
         self.set_associated_paths(filtered_associated_paths)
     }
@@ -287,7 +292,8 @@ impl PathEntry {
 
         let results: Vec<PathData> = scan_general(&locations_scan, 2, progress, matcher, builder);
 
-        let filtered = construct_scanner_result(results, None, |item: &PathData| item.as_path());
+        let filtered =
+            construct_and_deduplicate_paths(results, None, |item: &PathData| item.as_path());
 
         filtered
     }
@@ -320,7 +326,7 @@ impl PathEntry {
             MatchRules::new()
                 .equal(app_metadata.as_name())
                 .equal(app_metadata.as_bundle_executable_name())
-                .contain(app_metadata.as_organization())
+                // .contain(app_metadata.as_organization())
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
                 .check_path(path)
@@ -337,7 +343,8 @@ impl PathEntry {
         let asc_results: Vec<PathData> =
             scan_general(locations_scan, 3, progress, matcher, builder);
 
-        let results = construct_scanner_result(asc_results, None, |item: &PathData| item.as_path());
+        let results =
+            construct_and_deduplicate_paths(asc_results, None, |item: &PathData| item.as_path());
 
         results
     }
@@ -374,6 +381,7 @@ impl PathEntry {
             MatchRules::new()
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
+                .contain(app_metadata.as_bundle_executable_name())
                 .check_path(path)
         };
 
@@ -396,7 +404,9 @@ impl PathEntry {
             scan_container(locations_scan, &patterns, progress, is_match, builder);
 
         let results =
-            construct_scanner_result(container_results, None, |item: &PathData| item.as_path());
+            construct_and_deduplicate_paths(container_results, None, |item: &PathData| {
+                item.as_path()
+            });
 
         results
     }
