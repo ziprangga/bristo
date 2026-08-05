@@ -276,11 +276,11 @@ impl PathEntry {
 
         let matcher = |path: &Path| {
             MatchRules::new()
-                .equal(app_metadata.as_name())
                 .equal(app_metadata.as_bundle_executable_name())
-                .contain(app_metadata.as_organization())
+                .equal(app_metadata.as_name())
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
+                .contain(app_metadata.as_organization())
                 .check_path(path)
         };
 
@@ -327,8 +327,8 @@ impl PathEntry {
 
         let matcher = |path: &Path| {
             MatchRules::new()
-                .equal(app_metadata.as_name())
                 .equal(app_metadata.as_bundle_executable_name())
+                .equal(app_metadata.as_name())
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
                 .check_path(path)
