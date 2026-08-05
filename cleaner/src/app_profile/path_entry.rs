@@ -171,7 +171,7 @@ impl PathEntry {
 
         let associated_files = self.scan_associated_files(app_metadata, progress.clone());
         let sandbox_container = self.scan_sandbox_container(app_metadata, progress.clone());
-        let btm_files = self.scan_btm_files(app_metadata, progress);
+        let btm_files = self.scan_background_task_files(app_metadata, progress);
 
         associated_paths.extend(associated_files);
         associated_paths.extend(sandbox_container);
@@ -228,7 +228,7 @@ impl PathEntry {
 
     // ==================Internal Scanner=============
 
-    /// Discovers BTM-related files.
+    /// Discovers Background Task Management related files.
     ///
     /// Doc:
     /// Scans known Background Task Management locations and
@@ -263,8 +263,12 @@ impl PathEntry {
     /// scanning progress.
     ///
     /// Note:
-    /// Existing BTM results are replaced when the scan completes.
-    fn scan_btm_files<F>(&mut self, app_metadata: &AppMetadata, progress: F) -> Vec<PathData>
+    /// Existing Background Task Management results are replaced when the scan completes.
+    fn scan_background_task_files<F>(
+        &mut self,
+        app_metadata: &AppMetadata,
+        progress: F,
+    ) -> Vec<PathData>
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
