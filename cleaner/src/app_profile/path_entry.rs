@@ -47,10 +47,10 @@ use std::path::PathBuf;
 use crate::app_profile::metadata::AppMetadata;
 use crate::path_data::PathData;
 
-use crate::utility::BtmLocations;
+use crate::utility::BackgroundTaskLocations;
+use crate::utility::GeneralLocations;
 use crate::utility::MatchRules;
 use crate::utility::SandboxLocations;
-use crate::utility::ScanLocations;
 use crate::utility::construct_and_deduplicate_paths;
 use crate::utility::scan_container;
 use crate::utility::scan_general;
@@ -268,8 +268,7 @@ impl PathEntry {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        let locations_dir = BtmLocations::new();
-        let locations_scan = locations_dir.all_paths();
+        let locations_scan: Vec<PathBuf> = BackgroundTaskLocations::new().all_location_roots();
 
         let matcher = |path: &Path| {
             MatchRules::new()
@@ -320,13 +319,12 @@ impl PathEntry {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        let locations_dir = ScanLocations::new();
-        let locations_scan = locations_dir.as_paths();
+        let locations_scan: Vec<PathBuf> = GeneralLocations::new().location_roots();
+
         let matcher = |path: &Path| {
             MatchRules::new()
                 .equal(app_metadata.as_name())
                 .equal(app_metadata.as_bundle_executable_name())
-                // .contain(app_metadata.as_organization())
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
                 .check_path(path)
@@ -341,7 +339,7 @@ impl PathEntry {
         };
 
         let asc_results: Vec<PathData> =
-            scan_general(locations_scan, 3, progress, matcher, builder);
+            scan_general(&locations_scan, 3, progress, matcher, builder);
 
         let results =
             construct_and_deduplicate_paths(asc_results, None, |item: &PathData| item.as_path());
@@ -374,8 +372,8 @@ impl PathEntry {
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
         let containers_dir = SandboxLocations::new();
-        let locations_scan = containers_dir.as_paths();
-        let patterns = containers_dir.sandbox_pattern();
+        let locations_scan = containers_dir.location_roots();
+        let patterns = containers_dir.as_pattern();
 
         let is_match = |path: &Path| {
             MatchRules::new()
@@ -401,7 +399,7 @@ impl PathEntry {
         };
 
         let container_results: Vec<PathData> =
-            scan_container(locations_scan, &patterns, progress, is_match, builder);
+            scan_container(&locations_scan, &patterns, progress, is_match, builder);
 
         let results =
             construct_and_deduplicate_paths(container_results, None, |item: &PathData| {

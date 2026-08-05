@@ -156,8 +156,11 @@ impl AppLogReceipt {
     {
         self.bom_files.clear();
 
-        let locations_dir = ReceiptsLocations::new();
-        let locations_scan = locations_dir.as_paths();
+        let locations_scan: Vec<PathBuf> = ReceiptsLocations::new()
+            .as_locations()
+            .iter()
+            .map(|location| location.as_root().to_path_buf())
+            .collect();
 
         let matcher = |path: &Path| {
             path.extension().map(|ext| ext == "bom").unwrap_or(false)
@@ -177,7 +180,7 @@ impl AppLogReceipt {
             PathData::new(path_buf, name)
         };
 
-        let results: Vec<PathData> = scan_general(locations_scan, 1, progress, matcher, builder);
+        let results: Vec<PathData> = scan_general(&locations_scan, 1, progress, matcher, builder);
 
         let filtered =
             construct_and_deduplicate_paths(results, None, |item: &PathData| item.as_path());

@@ -42,11 +42,13 @@
 //!...
 
 mod icon_cache;
-mod locations_scan;
+mod locations;
 mod rules;
 mod scanner;
 
 pub use icon_cache::IconCache;
-pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
+pub use locations::{
+    BackgroundTaskLocations, GeneralLocations, ReceiptsLocations, SandboxLocations,
+};
 pub use rules::MatchRules;
 pub use scanner::{construct_and_deduplicate_paths, scan_container, scan_general};
