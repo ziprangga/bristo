@@ -202,12 +202,12 @@ impl GeneralLocations {
         push_root(home.join("Library/Application Scripts"));
         push_root(home.join("Library/Application Support"));
         push_root(home.join("Library/Application Support/CrashReporter"));
-        push_root(home.join("Library/Containers"));
+        // push_root(home.join("Library/Containers"));
         push_root(home.join("Library/Caches"));
         push_root(home.join("Library/HTTPStorages"));
-        push_root(home.join("Library/Group Containers"));
+        // push_root(home.join("Library/Group Containers"));
         push_root(home.join("Library/Internet Plug-Ins"));
-        push_root(home.join("Library/LaunchAgents"));
+        // push_root(home.join("Library/LaunchAgents"));
         push_root(home.join("Library/Logs"));
         push_root(home.join("Library/Preferences"));
         push_root(home.join("Library/Preferences/ByHost"));
@@ -221,11 +221,11 @@ impl GeneralLocations {
         push_root(PathBuf::from("/Library/Caches"));
         push_root(PathBuf::from("/Library/Extensions"));
         push_root(PathBuf::from("/Library/Internet Plug-Ins"));
-        push_root(PathBuf::from("/Library/LaunchAgents"));
-        push_root(PathBuf::from("/Library/LaunchDaemons"));
+        // push_root(PathBuf::from("/Library/LaunchAgents"));
+        // push_root(PathBuf::from("/Library/LaunchDaemons"));
         push_root(PathBuf::from("/Library/Logs"));
         push_root(PathBuf::from("/Library/Preferences"));
-        push_root(PathBuf::from("/Library/PrivilegedHelperTools"));
+        // push_root(PathBuf::from("/Library/PrivilegedHelperTools"));
         push_root(PathBuf::from("/private/var/db/receipts"));
         push_root(PathBuf::from("/usr/local/bin"));
         push_root(PathBuf::from("/usr/local/etc"));
@@ -338,11 +338,18 @@ impl SandboxLocations {
             .map(PathBuf::from)
             .unwrap_or_else(|_| PathBuf::from("/Users/Unknown"));
 
+        let container = Location::with_patterns(
+            home.join("Library/Containers"),
+            [PathBuf::from("Data").join("Library").join("Preferences")],
+        );
+
+        let group_container = Location::with_patterns(
+            home.join("Library/Group Containers"),
+            [PathBuf::from("Library").join("Preferences")],
+        );
+
         Self {
-            locations: vec![Location::with_patterns(
-                home.join("Library/Containers"),
-                [PathBuf::from("Data").join("Library").join("Preferences")],
-            )],
+            locations: vec![container, group_container],
         }
     }
 

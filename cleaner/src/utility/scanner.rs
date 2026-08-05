@@ -250,17 +250,20 @@ where
 /// Container scanning is intentionally separate from
 /// `scan_general()` because its discovery strategy differs
 /// substantially from normal filesystem traversal.
-pub fn scan_container<T, FProgress, FMatch, FBuild>(
+pub fn scan_container<T, FProgress, FContainerMatch, FFileMatch, FBuild>(
     locations: &[PathBuf],
+    max_depth: usize,
     patterns: &[PathBuf],
     progress: FProgress,
-    is_match: FMatch,
+    is_container_match: FContainerMatch,
+    is_file_match: FFileMatch,
     build: FBuild,
 ) -> Vec<T>
 where
     T: Send,
     FProgress: Fn(usize, &Path) + Send + Sync,
-    FMatch: Fn(&Path) -> bool + Send + Sync,
+    FContainerMatch: Fn(&Path) -> bool + Send + Sync,
+    FFileMatch: Fn(&Path) -> bool + Send + Sync,
     FBuild: Fn(&Path, &Path) -> T + Send + Sync,
 {
     let counter = Arc::new(AtomicUsize::new(0));
@@ -271,7 +274,7 @@ where
         .filter(|base| base.exists())
         .flat_map_iter(|base| {
             WalkDir::new(base)
-                .max_depth(1)
+                .max_depth(max_depth)
                 .into_iter()
                 .filter_map(|e| e.ok())
                 .filter(|entry| entry.depth() == 1 && entry.file_type().is_dir())
@@ -281,6 +284,10 @@ where
                     let n = counter.fetch_add(1, Ordering::Relaxed) + 1;
                     if n.is_multiple_of(256) {
                         progress(n, &container_dir);
+                    }
+
+                    if is_container_match(&container_dir) {
+                        return Some(build(&container_dir, &container_dir));
                     }
 
                     patterns.par_iter().find_map_any(|pattern| {
@@ -296,7 +303,7 @@ where
                             .find_map(|file| {
                                 let file_path = file.path();
 
-                                if is_match(&file_path) {
+                                if is_file_match(&file_path) {
                                     Some(build(&container_dir, &file_path))
                                 } else {
                                     None

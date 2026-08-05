@@ -379,11 +379,18 @@ impl PathEntry {
         let locations_scan = containers_dir.location_roots();
         let patterns = containers_dir.as_pattern();
 
-        let is_match = |path: &Path| {
+        let is_container_match = |path: &Path| {
             MatchRules::new()
                 .contain(app_metadata.as_bundle_id())
                 .contain(app_metadata.as_alias_name())
                 .contain(app_metadata.as_bundle_executable_name())
+                .check_path(path)
+        };
+
+        let is_file_match = |path: &Path| {
+            MatchRules::new()
+                .contain(app_metadata.as_bundle_id())
+                .contain(app_metadata.as_alias_name())
                 .check_path(path)
         };
 
@@ -402,8 +409,15 @@ impl PathEntry {
             PathData::new(container_dir.to_path_buf(), display_name)
         };
 
-        let container_results: Vec<PathData> =
-            scan_container(&locations_scan, &patterns, progress, is_match, builder);
+        let container_results: Vec<PathData> = scan_container(
+            &locations_scan,
+            1,
+            &patterns,
+            progress,
+            is_container_match,
+            is_file_match,
+            builder,
+        );
 
         let results =
             construct_and_deduplicate_paths(container_results, None, |item: &PathData| {
