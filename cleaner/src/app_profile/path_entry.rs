@@ -22,7 +22,7 @@
 //!
 //! - Application-data locations.
 //! - Sandbox container directories.
-//! - Background Task Management (BTM) locations.
+//! - Background Task Management locations.
 //!
 //! All discovered paths are merged into a single associated-path
 //! collection and deduplicated before being stored.
@@ -66,7 +66,7 @@ use crate::utility::scan_general;
 /// - The application bundle itself.
 /// - Associated application files.
 /// - Sandbox container directories.
-/// - Background Task Management (BTM) entries.
+/// - Background Task Management entries.
 ///
 /// Associated paths are collected from multiple scanners and
 /// normalized into a single deduplicated list.
@@ -74,7 +74,7 @@ use crate::utility::scan_general;
 /// Note:
 /// This type stores discovery results only.
 /// It does not perform file deletion or cleanup operations.
-/// Sandbox containers, BTM entries, and traditional application
+/// Sandbox containers, background task management entries, and traditional application
 /// files are stored together inside `associated_paths` after
 /// discovery and deduplication.
 #[derive(Debug, Clone, Default)]
@@ -125,7 +125,7 @@ impl PathEntry {
     /// - Application bundles.
     /// - Associated files.
     /// - Sandbox containers.
-    /// - BTM entries.
+    /// - background task management entries.
     pub fn all_paths(&self) -> Vec<PathData> {
         let mut paths = Vec::new();
 
@@ -152,7 +152,7 @@ impl PathEntry {
     ///
     /// - Associated application files.
     /// - Sandbox container directories.
-    /// - Background Task Management (BTM) entries.
+    /// - Background Task Management entries.
     ///
     /// Results from all scanners are merged, normalized,
     /// deduplicated, and stored internally.
@@ -171,11 +171,11 @@ impl PathEntry {
 
         let associated_files = self.scan_associated_files(app_metadata, progress.clone());
         let sandbox_container = self.scan_sandbox_container(app_metadata, progress.clone());
-        let btm_files = self.scan_background_task_files(app_metadata, progress);
+        let background_task_files = self.scan_background_task_files(app_metadata, progress);
 
         associated_paths.extend(associated_files);
         associated_paths.extend(sandbox_container);
-        associated_paths.extend(btm_files);
+        associated_paths.extend(background_task_files);
 
         let filtered_associated_paths =
             construct_and_deduplicate_paths(associated_paths, None, |item: &PathData| {
@@ -237,11 +237,11 @@ impl PathEntry {
     ///
     /// Design:
     ///
-    /// BTM scanning is intentionally separated from associated-file
+    /// background task scanning is intentionally separated from associated-file
     /// scanning.
     ///
     /// Associated files primarily represent user/application data,
-    /// while BTM files represent persistence mechanisms that allow
+    /// while background task management files represent persistence mechanisms that allow
     /// applications to execute automatically or integrate with
     /// system background services.
     ///
@@ -317,7 +317,7 @@ impl PathEntry {
     /// Matching is performed using application metadata.
     ///
     /// Note:
-    /// Sandbox containers and BTM entries are discovered through
+    /// Sandbox containers and background task management entries are discovered through
     /// separate scanners.
     fn scan_associated_files<F>(&mut self, app_metadata: &AppMetadata, progress: F) -> Vec<PathData>
     where
