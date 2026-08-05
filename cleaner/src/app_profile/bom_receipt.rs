@@ -53,11 +53,11 @@
 use std::path::{Path, PathBuf};
 
 use crate::app_profile::metadata::AppMetadata;
-use crate::locations_scan::ReceiptsLocations;
 use crate::path_data::PathData;
-use crate::rules::MatchRules;
-use crate::scanner::construct_and_deduplicate_paths;
-use crate::scanner::scan_general;
+use crate::utility::MatchRules;
+use crate::utility::ReceiptsLocations;
+use crate::utility::construct_and_deduplicate_paths;
+use crate::utility::scan_general;
 
 /// Collection of application receipt records.
 ///

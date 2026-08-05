@@ -67,13 +67,10 @@
 
 mod app_profile;
 mod errors;
-mod icon_cache;
-mod locations_scan;
-mod path_data;
-mod rules;
-mod scanner;
 mod syscom;
-mod trash_entry;
+
+pub mod path_data;
+pub mod utility;
 
 pub use app_profile::AppLogReceipt;
 pub use app_profile::AppMetadata;
@@ -81,11 +78,10 @@ pub use app_profile::AppProfile;
 pub use app_profile::PathEntry;
 pub use app_profile::{AppProcs, Proc};
 pub use errors::{ErrorKind, Result};
-pub use icon_cache::IconCache;
-pub use locations_scan::{BtmLocations, ReceiptsLocations, SandboxLocations, ScanLocations};
-pub use path_data::PathData;
-pub use rules::MatchRules;
-pub use trash_entry::TrashEntry;
+pub use utility::IconCache;
+
+use path_data::PathData;
+use path_data::trash_entry::TrashEntry;
 
 use mini_logger::debug;
 use rayon::prelude::*;

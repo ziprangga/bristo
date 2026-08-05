@@ -44,7 +44,7 @@
 //!..
 
 use crate::app_profile::metadata::AppMetadata;
-use crate::rules::MatchRules;
+use crate::utility::MatchRules;
 use mini_logger::debug;
 use rayon::prelude::*;
 use std::ffi::OsString;

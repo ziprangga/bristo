@@ -341,8 +341,8 @@ impl<'a> MatchRules<'a> {
     /// Adds a substring matching rule.
     ///
     /// Doc:
-    /// Registers a rule that succeeds when a filename contains
-    /// the provided value.
+    /// Registers a rule that succeeds when the target value
+    /// contains the provided text.
     ///
     /// Note:
     /// Matching is case-insensitive and Unicode-normalized.
@@ -359,8 +359,8 @@ impl<'a> MatchRules<'a> {
     /// Adds an exact matching rule.
     ///
     /// Doc:
-    /// Registers a rule that succeeds when a filename exactly
-    /// matches the provided value.
+    /// Registers a rule that succeeds when the target value
+    /// exactly matches the provided text.
     ///
     /// Note:
     /// Matching is case-insensitive and Unicode-normalized.

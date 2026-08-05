@@ -109,8 +109,8 @@ impl TrashItem {
 /// Result of a trash operation.
 ///
 /// Doc:
-/// Stores the complete outcome of moving one or more paths
-/// to the system Trash.
+/// Stores the complete outcome of attempting to move one or
+/// more paths to the system Trash.
 ///
 /// Results are divided into two categories:
 ///
@@ -150,8 +150,8 @@ impl TrashEntry {
     /// Moves all paths in the entry to the system Trash.
     ///
     /// Doc:
-    /// Attempts to move every path associated with the provided
-    /// `PathEntry` into the operating system Trash.
+    /// Attempts to move every `PathData` in the provided slice into
+    /// the operating system Trash.
     ///
     /// The operation records both successful and failed results.
     ///
@@ -170,9 +170,8 @@ impl TrashEntry {
     /// when a subset of files cannot be removed.
     ///
     /// Note:
-    /// The current implementation records successful moves but
-    /// does not yet populate the final trash location returned by
-    /// the operating system.
+    /// The final trash location is determined by the operating
+    /// system and may differ from the original path.
     pub fn moved_path_to_trash(paths: &[PathData]) -> Result<Self> {
         let mut result = Self::default();
 

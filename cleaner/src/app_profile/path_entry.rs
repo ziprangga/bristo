@@ -45,15 +45,15 @@ use std::path::Path;
 use std::path::PathBuf;
 
 use crate::app_profile::metadata::AppMetadata;
-use crate::locations_scan::BtmLocations;
-use crate::locations_scan::SandboxLocations;
-use crate::locations_scan::ScanLocations;
 use crate::path_data::PathData;
-use crate::rules::MatchRules;
 
-use crate::scanner::construct_and_deduplicate_paths;
-use crate::scanner::scan_container;
-use crate::scanner::scan_general;
+use crate::utility::BtmLocations;
+use crate::utility::MatchRules;
+use crate::utility::SandboxLocations;
+use crate::utility::ScanLocations;
+use crate::utility::construct_and_deduplicate_paths;
+use crate::utility::scan_container;
+use crate::utility::scan_general;
 
 /// Application path inventory.
 ///
