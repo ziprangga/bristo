@@ -132,7 +132,14 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
 
                 let cleaner = state.pending_cleaner.take().unwrap();
                 if !answer {
-                    return Task::done(AppMessage::ScanApp(cleaner));
+                    let status = Status::new().with_status_error(
+                        ErrorKind::skipped().with_reason("Process termination cancelled"),
+                    );
+
+                    return Task::batch(vec![
+                        Task::done(AppMessage::ShowStatus(status)),
+                        Task::done(AppMessage::ScanApp(cleaner)),
+                    ]);
                 }
 
                 let emitter = channel.get_emitter();

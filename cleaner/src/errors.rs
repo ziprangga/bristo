@@ -210,6 +210,14 @@ impl ErrorKind {
         self.reason.as_deref()
     }
 
+    pub fn is_failed(&self) -> bool {
+        matches!(self.kind, Kind::Failed)
+    }
+
+    pub fn is_skipped(&self) -> bool {
+        matches!(self.kind, Kind::Skipped)
+    }
+
     pub fn is_empty(&self) -> bool {
         self.summary.is_none() && self.reason.is_none()
     }

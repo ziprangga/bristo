@@ -210,7 +210,7 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
                     .width(Length::Fill)
                     .center()
                     .style(|_| text::Style {
-                        color: Some(Color::from_rgb8(255, 150, 0)),
+                        color: Some(result.color()),
                     }),
             )
             .width(Length::Fill)

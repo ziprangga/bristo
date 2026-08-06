@@ -2,6 +2,7 @@ mod render;
 use cleaner::ErrorKind;
 use simple_status::StatusEvent;
 
+use iced::Color;
 use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
@@ -17,6 +18,13 @@ impl StatusResult {
 
     pub fn error(error: ErrorKind) -> Self {
         Self::Error(error)
+    }
+
+    pub fn color(&self) -> Color {
+        match self {
+            StatusResult::Success(_) => Color::from_rgb8(0, 200, 0),
+            StatusResult::Error(_) => Color::from_rgb8(255, 150, 0),
+        }
     }
 }
 

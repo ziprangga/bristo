@@ -66,9 +66,9 @@
 //!..
 
 mod app_profile;
-mod errors;
 mod syscom;
 
+pub mod errors;
 pub mod path_data;
 pub mod utility;
 
