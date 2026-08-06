@@ -166,7 +166,8 @@ pub fn view(state: &AppState) -> Element<'_, AppMessage> {
         && !state
             .cleaner
             .as_app_profile()
-            .as_app_log_receipt()
+            .as_path_entry()
+            .as_bom_files()
             .is_empty()
     {
         Container::new(button_export_bom_files_active)

@@ -2,7 +2,6 @@ use rfd::AsyncFileDialog;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-// use cleaner::TrashEntry;
 use cleaner::{Cleaner, IconCache};
 use cleaner::{ErrorKind, Result};
 use simple_status::{StatusEmitter, status_emit};
@@ -115,11 +114,7 @@ pub async fn scan_app_async(
     mut cleaner: Cleaner,
     emitter: Option<Arc<StatusEmitter>>,
 ) -> Result<Cleaner> {
-    let app_name = cleaner
-        .as_app_profile()
-        .as_app_metadata()
-        .as_name()
-        .to_string();
+    let app_name = cleaner.as_app_profile().as_metadata().as_name().to_string();
 
     status_emit!(
         async,

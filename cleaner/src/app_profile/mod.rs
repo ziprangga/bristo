@@ -26,28 +26,28 @@
 //!
 //! - Application metadata.
 //! - Running processes.
-//! - Package receipt and BOM information.
-//! - Application related filesystem paths.
+//! - Application-related filesystem paths, including package receipt BOM files.
 //!
 //! The typical lifecycle is:
 //!
 //! 1. Create an `AppProfile` from an application path.
 //! 2. Discover running processes.
-//! 3. Scan package receipts and BOM files.
-//! 4. Scan application-associated paths.
-//! 5. Retrieve discovered filesystem entries.
+//! 3. Scan application filesystem entries.
+//! 4. Retrieve discovered filesystem entries.
 //!
 //! The module separates application information into dedicated
 //! containers:
 //!
-//! - `AppMetadata` stores application information.
+//! - `Metadata` stores application information.
 //! - `AppProcs` stores discovered running processes.
-//! - `AppLogReceipt` stores package receipt and BOM metadata.
-//! - PathEntry stores application and discovered associated paths.
+//! - `PathEntry` stores the application bundle together with
+//!   discovered filesystem entries, including associated files,
+//!   sandbox containers, background task files, and package
+//!   receipt BOM files.
 //!
 //! `AppProfile` provides a single aggregate state used by the
-//! cleanup workflow while delegating discovery details to the
-//! specialized containers responsible for each data category.
+//! cleanup workflow while delegating discovery responsibilities
+//! to the specialized components it owns.
 //!
 //! Note:
 //! Most callers should interact with `AppProfile` rather than the
@@ -55,16 +55,13 @@
 //! organize discovery results and scanning logic.
 //!..
 
-mod bom_receipt;
 mod metadata;
 mod path_entry;
-mod processed;
+mod process_entry;
 
-pub use bom_receipt::AppLogReceipt;
-
-pub use metadata::AppMetadata;
+pub use metadata::Metadata;
 pub use path_entry::PathEntry;
-pub use processed::{AppProcs, Proc};
+pub use process_entry::ProcessEntry;
 
 use crate::errors::Result;
 use crate::path_data::PathData;
@@ -84,32 +81,31 @@ use std::path::Path;
 ///
 /// - Application metadata.
 /// - Running processes.
-/// - Package receipt information.
-/// - Discovered filesystem paths.
+/// - Discovered filesystem entries, including associated
+///   application files, sandbox containers, background task
+///   files, and package receipt BOM files.
 ///
 /// Discovery operations progressively populate the profile:
 ///
 /// ```text
-/// AppMetadata
+/// Metadata
 ///      │
 ///      ▼
 /// AppProcs
 ///      │
 ///      ▼
-/// AppLogReceipt
-///      │
-///      ▼
 /// PathEntry
 ///      │
 ///      ├─ Application bundle
-///      └─ Associated paths
-///          ├─ Application files
-///          ├─ Sandbox containers
-///          └─ BTM entries
+///      ├─ General associated files
+///      ├─ Sandbox containers
+///      ├─ Background task files
+///      └─ Package receipt BOM files
 /// ```
 ///
-/// Once populated, `PathEntry` provides access to all discovered
-/// filesystem locations related to the application.
+/// Once populated, `PathEntry` provides access to every discovered
+/// filesystem entry related to the application, organized by
+/// category.
 ///
 /// Note:
 /// `AppProfile` represents mutable discovery state. It is commonly
@@ -117,49 +113,37 @@ use std::path::Path;
 /// orchestration.
 #[derive(Debug, Default, Clone)]
 pub struct AppProfile {
-    app_metadata: AppMetadata,
-    app_procs: AppProcs,
-    app_log_receipt: AppLogReceipt,
+    metadata: Metadata,
+    process_entry: ProcessEntry,
     path_entry: PathEntry,
 }
 
 impl AppProfile {
-    pub fn new(
-        app_metadata: AppMetadata,
-        app_procs: AppProcs,
-        app_log_receipt: AppLogReceipt,
-        path_entry: PathEntry,
-    ) -> Self {
+    pub fn new(metadata: Metadata, process_entry: ProcessEntry, path_entry: PathEntry) -> Self {
         Self {
-            app_metadata,
-            app_procs,
-            app_log_receipt,
+            metadata,
+            process_entry,
             path_entry,
         }
     }
 
     pub fn from_path(app_path: &Path) -> Result<Self> {
-        let app_metadata = AppMetadata::from_path(app_path)?;
-        let path_entry = PathEntry::from_metadata(&app_metadata);
+        let metadata = Metadata::from_path(app_path)?;
+        let path_entry = PathEntry::from_metadata(&metadata);
 
         Ok(Self {
-            app_metadata: app_metadata,
-            app_procs: AppProcs::default(),
-            app_log_receipt: AppLogReceipt::default(),
+            metadata: metadata,
+            process_entry: ProcessEntry::default(),
             path_entry: path_entry,
         })
     }
 
-    pub fn as_app_metadata(&self) -> &AppMetadata {
-        &self.app_metadata
+    pub fn as_metadata(&self) -> &Metadata {
+        &self.metadata
     }
 
-    pub fn as_app_procs(&self) -> &AppProcs {
-        &self.app_procs
-    }
-
-    pub fn as_app_log_receipt(&self) -> &AppLogReceipt {
-        &self.app_log_receipt
+    pub fn as_process_entry(&self) -> &ProcessEntry {
+        &self.process_entry
     }
 
     pub fn as_path_entry(&self) -> &PathEntry {
@@ -169,10 +153,10 @@ impl AppProfile {
     // =================Scanner========================================
     // Scan processed
     pub fn find_pid_and_command(&mut self) {
-        self.app_procs = AppProcs::find_app_processes(&self.app_metadata);
+        self.process_entry = ProcessEntry::find_app_processes(&self.metadata);
 
         // debug list of the app process
-        for _p in self.app_procs.list() {
+        for _p in self.process_entry.list() {
             debug!(
                 "list of process app: PID {}: cmd_line = '{}' name = '{}'",
                 _p.pid(),
@@ -182,16 +166,16 @@ impl AppProfile {
         }
     }
 
-    /// Scans package receipts and BOM metadata for the application.
-    ///
-    /// The progress callback reports the current scanning progress.
-    pub fn find_log_bom<F>(&mut self, progress: F)
-    where
-        F: Fn(usize, &Path) + Send + Sync + Clone,
-    {
-        self.app_log_receipt
-            .scan_bom_files(&self.app_metadata, progress);
-    }
+    // /// Scans package receipts and BOM metadata for the application.
+    // ///
+    // /// The progress callback reports the current scanning progress.
+    // pub fn find_log_bom<F>(&mut self, progress: F)
+    // where
+    //     F: Fn(usize, &Path) + Send + Sync + Clone,
+    // {
+    //     self.app_log_receipt
+    //         .scan_bom_files(&self.metadata, progress);
+    // }
 
     /// Scans for filesystem paths associated with the application.
     ///
@@ -202,12 +186,11 @@ impl AppProfile {
     /// and stored inside `PathEntry`.
     ///
     /// The progress callback reports the current scanning progress.
-    pub fn find_associated_paths<F>(&mut self, progress: F)
+    pub fn find_path_entry<F>(&mut self, progress: F)
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        self.path_entry
-            .scan_associated_paths(&self.app_metadata, progress)
+        self.path_entry.scan_path_entry(&self.metadata, progress)
     }
 
     // ========================Setter==========================================
@@ -229,16 +212,14 @@ impl AppProfile {
     ///
     /// - Application metadata.
     /// - Running processes.
-    /// - Receipt records.
-    /// - Discovered filesystem paths.
+    /// - Discovered filesystem entries including Package receipt BOM files.
     ///
     /// Note:
     /// After calling this method the profile behaves as if it
     /// had never been scanned.
     pub fn reset(&mut self) {
-        self.app_metadata = AppMetadata::default();
-        self.app_procs = AppProcs::default();
-        self.app_log_receipt = AppLogReceipt::default();
+        self.metadata = Metadata::default();
+        self.process_entry = ProcessEntry::default();
         self.path_entry = PathEntry::default()
     }
 }

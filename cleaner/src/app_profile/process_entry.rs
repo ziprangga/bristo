@@ -43,7 +43,7 @@
 //! the current process table and may change between scans.
 //!..
 
-use crate::app_profile::metadata::AppMetadata;
+use crate::app_profile::metadata::Metadata;
 use crate::utility::MatchRules;
 use mini_logger::debug;
 use rayon::prelude::*;
@@ -67,18 +67,18 @@ use sysinfo::{ProcessesToUpdate, System};
 /// process name alone.
 ///
 /// Note:
-/// `Proc` is a lightweight snapshot of process information
+/// `ProcessData` is a lightweight snapshot of process information
 /// captured during scanning and does not maintain a live
 /// connection to the operating system.
 #[derive(Debug, Default, Clone)]
-pub struct Proc {
+pub struct ProcessData {
     pid: i32,
     command: String,
     name: String,
 }
 
-impl Proc {
-    /// Construct a Proc.
+impl ProcessData {
+    /// Construct a ProcessData.
     pub fn new(pid: i32, command: String, name: String) -> Self {
         Self { pid, command, name }
     }
@@ -120,13 +120,13 @@ impl Proc {
 /// The contents of this collection represent a snapshot of
 /// the system at the time the scan was performed.
 #[derive(Debug, Default, Clone)]
-pub struct AppProcs {
-    processes: Vec<Proc>,
+pub struct ProcessEntry {
+    processes: Vec<ProcessData>,
 }
 
-impl AppProcs {
+impl ProcessEntry {
     /// Returns all discovered processes.
-    pub fn list(&self) -> &[Proc] {
+    pub fn list(&self) -> &[ProcessData] {
         &self.processes
     }
 
@@ -192,7 +192,7 @@ impl AppProcs {
     ///
     /// Empty metadata values do not generate matching rules
     /// and are ignored during rule construction.
-    pub fn find_app_processes(app_metadata: &AppMetadata) -> Self {
+    pub fn find_app_processes(metadata: &Metadata) -> Self {
         let mut sys = System::new();
         sys.refresh_processes(ProcessesToUpdate::All, true);
 
@@ -207,7 +207,7 @@ impl AppProcs {
         //
         // A helper pattern is therefore included as an additional
         // matching signal during process discovery.
-        let helper = format!("{} Helper", app_metadata.as_bundle_executable_name());
+        let helper = format!("{} Helper", metadata.as_bundle_executable_name());
 
         // Build matching rules from application metadata.
         //
@@ -215,17 +215,17 @@ impl AppProcs {
         // command lines to provide consistent matching
         // behavior throughout discovery.
         let rules = MatchRules::new()
-            .equal(app_metadata.as_bundle_executable_name())
+            .equal(metadata.as_bundle_executable_name())
             .equal(&helper)
-            .contain(app_metadata.as_bundle_id())
-            .contain(app_metadata.as_alias_name());
+            .contain(metadata.as_bundle_id())
+            .contain(metadata.as_alias_name());
 
         debug!(
             "Process matching rules: count={}, executable='{}', bundle_id='{}', alias='{}'",
             rules.len(),
-            app_metadata.as_bundle_executable_name(),
-            app_metadata.as_bundle_id(),
-            app_metadata.as_alias_name()
+            metadata.as_bundle_executable_name(),
+            metadata.as_bundle_id(),
+            metadata.as_alias_name()
         );
 
         let processes = sys
@@ -258,7 +258,11 @@ impl AppProcs {
                         pid, process_name, cmd_line
                     );
                     // Construct the result
-                    Some(Proc::new(pid.as_u32() as i32, cmd_line, process_name))
+                    Some(ProcessData::new(
+                        pid.as_u32() as i32,
+                        cmd_line,
+                        process_name,
+                    ))
                 } else {
                     None
                 }

@@ -81,7 +81,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                     find_app_process_async(cleaner, Some(emitter)),
                     |res| match res {
                         Ok(cleaner) => {
-                            if cleaner.as_app_profile().as_app_procs().is_empty() {
+                            if cleaner.as_app_profile().as_process_entry().is_empty() {
                                 AppMessage::ScanApp(cleaner)
                             } else {
                                 AppMessage::ConfirmKill(cleaner)
@@ -116,7 +116,7 @@ pub fn update(state: &mut AppState, message: AppMessage) -> Task<AppMessage> {
                         .as_ref()
                         .unwrap()
                         .as_app_profile()
-                        .as_app_metadata()
+                        .as_metadata()
                         .as_name()
                 ));
 

@@ -226,7 +226,7 @@ impl GeneralLocations {
         push_root(PathBuf::from("/Library/Logs"));
         push_root(PathBuf::from("/Library/Preferences"));
         // push_root(PathBuf::from("/Library/PrivilegedHelperTools"));
-        push_root(PathBuf::from("/private/var/db/receipts"));
+        // push_root(PathBuf::from("/private/var/db/receipts"));
         push_root(PathBuf::from("/usr/local/bin"));
         push_root(PathBuf::from("/usr/local/etc"));
         push_root(PathBuf::from("/usr/local/opt"));

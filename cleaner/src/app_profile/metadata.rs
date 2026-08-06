@@ -89,7 +89,7 @@ use crate::errors::{ErrorKind, Result};
 /// This type acts as the primary identity source for the
 /// scanning system.
 #[derive(Debug, Default, Clone)]
-pub struct AppMetadata {
+pub struct Metadata {
     bundle_path: PathBuf,
     name: String,
     bundle_id: String,
@@ -98,7 +98,7 @@ pub struct AppMetadata {
     alias_name: String,
 }
 
-impl AppMetadata {
+impl Metadata {
     /// new contruct
     pub fn new(
         bundle_path: PathBuf,

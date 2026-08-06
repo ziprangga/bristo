@@ -72,11 +72,10 @@ mod syscom;
 pub mod path_data;
 pub mod utility;
 
-pub use app_profile::AppLogReceipt;
-pub use app_profile::AppMetadata;
 pub use app_profile::AppProfile;
+pub use app_profile::Metadata;
 pub use app_profile::PathEntry;
-pub use app_profile::{AppProcs, Proc};
+pub use app_profile::ProcessEntry;
 pub use errors::{ErrorKind, Result};
 pub use utility::IconCache;
 
@@ -165,7 +164,7 @@ impl Cleaner {
         let app_profile = AppProfile::from_path(path)?;
 
         if let Some(ref progress_hook) = progress {
-            let app_name = app_profile.as_app_metadata().as_name();
+            let app_name = app_profile.as_metadata().as_name();
             progress_hook(Cow::Owned(format!("Found profile for '{}'", app_name)));
         }
 
@@ -179,7 +178,7 @@ impl Cleaner {
         self.app_profile.find_pid_and_command();
 
         if let Some(ref progress_hook) = progress {
-            let process_count = self.app_profile.as_app_procs().list().len();
+            let process_count = self.app_profile.as_process_entry().list().len();
             progress_hook(Cow::Owned(format!("Found process {}", process_count)));
         }
 
@@ -190,7 +189,7 @@ impl Cleaner {
     where
         F: Fn(usize, usize) + Send + Sync + Clone,
     {
-        let processes = self.app_profile.as_app_procs();
+        let processes = self.app_profile.as_process_entry();
 
         if processes.is_empty() {
             return Ok(());
@@ -237,7 +236,7 @@ impl Cleaner {
     where
         F: Fn(usize, &Path) + Send + Sync + Clone,
     {
-        self.app_profile.find_associated_paths(progress);
+        self.app_profile.find_path_entry(progress);
 
         Ok(self)
     }
@@ -247,7 +246,7 @@ impl Cleaner {
         // Determine the folder
         let app_log_folder = Path::new(log_dir).join(format!(
             "{}_bom_log",
-            self.app_profile.as_app_metadata().as_name()
+            self.app_profile.as_metadata().as_name()
         ));
         debug!("Creating folder: {}", app_log_folder.display());
 
@@ -264,7 +263,7 @@ impl Cleaner {
         // Use par_iter() for parallel processing
         let results: Vec<Result<()>> = self
             .app_profile
-            .as_app_log_receipt()
+            .as_path_entry()
             .as_bom_files()
             .par_iter()
             .map(|bom_file| {
@@ -301,10 +300,24 @@ impl Cleaner {
         let mut failed = Vec::new();
 
         // Associated paths
-        let asc_trash = TrashEntry::moved_path_to_trash(path_entry.as_associated_paths())?;
+        let general_associated_trash =
+            TrashEntry::moved_path_to_trash(path_entry.as_general_associated_files())?;
+        moved.extend(general_associated_trash.moved_path().iter().cloned());
+        failed.extend(general_associated_trash.failed_path().iter().cloned());
 
-        moved.extend(asc_trash.moved_path().iter().cloned());
-        failed.extend(asc_trash.failed_path().iter().cloned());
+        let sandbox_container_trash =
+            TrashEntry::moved_path_to_trash(path_entry.as_sandbox_container())?;
+        moved.extend(sandbox_container_trash.moved_path().iter().cloned());
+        failed.extend(sandbox_container_trash.failed_path().iter().cloned());
+
+        let background_task_trash =
+            TrashEntry::moved_path_to_trash(path_entry.as_background_task_files())?;
+        moved.extend(background_task_trash.moved_path().iter().cloned());
+        failed.extend(background_task_trash.failed_path().iter().cloned());
+
+        let bom_trash = TrashEntry::moved_path_to_trash(path_entry.as_bom_files())?;
+        moved.extend(bom_trash.moved_path().iter().cloned());
+        failed.extend(bom_trash.failed_path().iter().cloned());
 
         // App bundle only if associated succeeded
         match failed.is_empty() {

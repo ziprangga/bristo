@@ -44,12 +44,9 @@ fn test_app_metadata_from_temp_path() -> cleaner::Result<()> {
                 .with_reason(e.to_string())
         })?;
 
-    // Now call your AppMetadata function
+    // Now call your Metadata function
     let app_profile = cleaner::AppProfile::from_path(&app_path)?;
-    assert_eq!(
-        app_profile.as_app_metadata().as_bundle_id(),
-        "com.example.test"
-    );
+    assert_eq!(app_profile.as_metadata().as_bundle_id(), "com.example.test");
 
     // Optional: clean up
     let _ = fs::remove_dir_all(&app_path);
@@ -118,7 +115,7 @@ fn test_kill_processes_safe() -> cleaner::Result<()> {
     // let cleaner = cleaner::Cleaner::default();
     // Use a dummy .app path
     let app_path: PathBuf = PathBuf::from("/Applications/NonExistent.app");
-    let app_metadata = cleaner::AppMetadata::new(
+    let app_metadata = cleaner::Metadata::new(
         app_path.clone(),
         "NonExistent.app".to_string(),
         "com.example.test".to_string(),
@@ -130,8 +127,8 @@ fn test_kill_processes_safe() -> cleaner::Result<()> {
 
     let app_profile = cleaner::AppProfile::new(
         app_metadata,
-        cleaner::AppProcs::default(),
-        cleaner::AppLogReceipt::default(),
+        cleaner::ProcessEntry::default(),
+        // cleaner::AppLogReceipt::default(),
         path_entry,
     );
 

@@ -80,9 +80,6 @@ use walkdir::WalkDir;
 /// - Produces a clean final result.
 ///
 /// Typical usage:
-/// - Associate scan results
-/// - BTM scan results
-/// - Receipt scan results
 /// - Any scanner that may produce overlapping paths
 ///
 /// Design:
@@ -104,11 +101,7 @@ use walkdir::WalkDir;
 ///
 /// Note:
 /// Parent-path filtering occurs before duplicate removal.
-pub fn construct_and_deduplicate_paths<T, FPath>(
-    mut results: Vec<T>,
-    extra: Option<Vec<T>>,
-    get_path: FPath,
-) -> Vec<T>
+pub fn construct_and_deduplicate_paths<T, FPath>(mut results: Vec<T>, get_path: FPath) -> Vec<T>
 where
     FPath: Fn(&T) -> &Path,
 {
@@ -123,10 +116,6 @@ where
             }
         }
         filtered.push(item);
-    }
-
-    if let Some(extra) = extra {
-        filtered.extend(extra);
     }
 
     let mut seen = HashSet::new();
